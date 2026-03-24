@@ -97,7 +97,8 @@ function CaseList({
 }
 
 export function VettMvp() {
-  const { accessibleSops, allCases, cases, createCase, currentUser, loginAs, logout, users } = useAppState();
+  const { accessibleSops, allCases, cases, createCase, currentUser, loading, loginAs, logout, users } =
+    useAppState();
   const [selectedCaseId, setSelectedCaseId] = useState<string>("");
 
   const selectedCase = useMemo(
@@ -106,6 +107,18 @@ export function VettMvp() {
   );
 
   const officeMetrics = getOfficeMetrics(allCases, users);
+
+  if (loading) {
+    return (
+      <div className="workspace-grid">
+        <section className="surface">
+          <span className="eyebrow">Loading</span>
+          <h2>Connecting to workspace data</h2>
+          <p>Fetching users and cases from the shared database.</p>
+        </section>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (

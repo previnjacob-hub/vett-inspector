@@ -7,7 +7,7 @@ import { sectorLabels, type AppUser, type Sector } from "@/lib/mock-data";
 type OfficeIntakeFormProps = {
   users: AppUser[];
   allowedSectors: Sector[];
-  onCreateCase: (input: CreateCaseInput) => string;
+  onCreateCase: (input: CreateCaseInput) => Promise<string>;
   onCaseCreated?: (caseId: string) => void;
 };
 
@@ -36,6 +36,7 @@ export function OfficeIntakeForm({
     sector: allowedSectors[0] ?? "property-verification",
   });
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const verifierOptions = useMemo(
     () =>
@@ -62,7 +63,7 @@ export function OfficeIntakeForm({
     setError("");
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!form.enquirySource || !form.clientName || !form.assetName || !form.address || !form.verifierId) {
@@ -70,12 +71,21 @@ export function OfficeIntakeForm({
       return;
     }
 
-    const caseId = onCreateCase(form);
-    setForm({
-      ...initialForm,
-      sector: allowedSectors[0] ?? "property-verification",
-    });
-    onCaseCreated?.(caseId);
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const caseId = await onCreateCase(form);
+      setForm({
+        ...initialForm,
+        sector: allowedSectors[0] ?? "property-verification",
+      });
+      onCaseCreated?.(caseId);
+    } catch {
+      setError("Could not create case. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -251,8 +261,8 @@ export function OfficeIntakeForm({
         {error ? <div className="field-error">{error}</div> : null}
 
         <div className="sticky-buttons">
-          <button className="primary-button" type="submit">
-            Create case
+          <button className="primary-button" disabled={submitting} type="submit">
+            {submitting ? "Creating..." : "Create case"}
           </button>
         </div>
       </form>

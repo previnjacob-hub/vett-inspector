@@ -3,19 +3,22 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { mapDbCase, mapDbUser } from "@/lib/db-mappers";
 import {
   initialCases,
   sopDocuments,
-  users,
+  users as mockUsers,
   type AppUser,
   type PropertyCase,
   type Sector,
   type SopDocument,
 } from "@/lib/mock-data";
+import { hasSupabaseEnv, supabase } from "@/lib/supabase";
 
 export type CreateCaseInput = {
   enquirySource: string;
@@ -44,13 +47,14 @@ type AppStateValue = {
   currentUser: AppUser | null;
   users: AppUser[];
   accessibleSops: SopDocument[];
+  loading: boolean;
   loginAs: (userId: string) => void;
   logout: () => void;
-  createCase: (input: CreateCaseInput) => string;
-  assignToAdvocate: (input: AdvocateHandoffInput) => void;
-  submitVerifierCase: (caseId: string) => void;
-  startAdvocateReview: (caseId: string) => void;
-  completeAdvocateReview: (caseId: string) => void;
+  createCase: (input: CreateCaseInput) => Promise<string>;
+  assignToAdvocate: (input: AdvocateHandoffInput) => Promise<void>;
+  submitVerifierCase: (caseId: string) => Promise<void>;
+  startAdvocateReview: (caseId: string) => Promise<void>;
+  completeAdvocateReview: (caseId: string) => Promise<void>;
   getCaseById: (caseId: string) => PropertyCase | undefined;
 };
 
@@ -68,7 +72,7 @@ function canAccessSector(user: AppUser, sector: Sector) {
   return user.sectors.includes(sector);
 }
 
-function readStoredUser(): AppUser | null {
+function readStoredUser(users: AppUser[]): AppUser | null {
   if (typeof window === "undefined") {
     return null;
   }
@@ -90,7 +94,8 @@ function getVisibleCases(currentUser: AppUser | null, allCases: PropertyCase[]) 
     return allCases.filter(
       (propertyCase) =>
         propertyCase.verifierId === currentUser.id &&
-        (propertyCase.stage === "Assigned to Verifier" || propertyCase.stage === "Verifier In Progress") &&
+        (propertyCase.stage === "Assigned to Verifier" ||
+          propertyCase.stage === "Verifier In Progress") &&
         canAccessSector(currentUser, propertyCase.sector),
     );
   }
@@ -98,7 +103,8 @@ function getVisibleCases(currentUser: AppUser | null, allCases: PropertyCase[]) 
   return allCases.filter(
     (propertyCase) =>
       propertyCase.advocateId === currentUser.id &&
-      (propertyCase.stage === "Assigned to Advocate" || propertyCase.stage === "Advocate In Progress") &&
+      (propertyCase.stage === "Assigned to Advocate" ||
+        propertyCase.stage === "Advocate In Progress") &&
       canAccessSector(currentUser, propertyCase.sector),
   );
 }
@@ -147,9 +153,47 @@ function getDefaultLegalSummary(sector: Sector) {
   return "Legal review has not started yet. Office team will assign or notify an advocate after verifier submission.";
 }
 
+function getFallbackUsers() {
+  return mockUsers;
+}
+
+function getFallbackCases() {
+  return initialCases;
+}
+
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [cases, setCases] = useState<PropertyCase[]>(initialCases);
-  const [currentUser, setCurrentUser] = useState<AppUser | null>(readStoredUser);
+  const [allCases, setAllCases] = useState<PropertyCase[]>(getFallbackCases);
+  const [users, setUsers] = useState<AppUser[]>(getFallbackUsers);
+  const [loading, setLoading] = useState(hasSupabaseEnv);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(readStoredUser(getFallbackUsers()));
+
+  useEffect(() => {
+    async function loadData() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
+      const [usersResult, casesResult] = await Promise.all([
+        supabase.from("app_users").select("*").order("name", { ascending: true }),
+        supabase.from("cases").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      if (!usersResult.error && usersResult.data) {
+        const mappedUsers = usersResult.data.map(mapDbUser);
+        setUsers(mappedUsers);
+        setCurrentUser(readStoredUser(mappedUsers));
+      }
+
+      if (!casesResult.error && casesResult.data) {
+        setAllCases(casesResult.data.map(mapDbCase));
+      }
+
+      setLoading(false);
+    }
+
+    void loadData();
+  }, []);
 
   const accessibleSops = useMemo(() => {
     if (!currentUser) {
@@ -163,13 +207,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     );
   }, [currentUser]);
 
+  const cases = useMemo(() => getVisibleCases(currentUser, allCases), [allCases, currentUser]);
+
   const value = useMemo<AppStateValue>(
     () => ({
-      cases: getVisibleCases(currentUser, cases),
-      allCases: cases,
+      cases,
+      allCases,
       currentUser,
       users,
       accessibleSops,
+      loading,
       loginAs: (userId: string) => {
         const nextUser = users.find((user) => user.id === userId) ?? null;
         setCurrentUser(nextUser);
@@ -188,12 +235,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           window.localStorage.removeItem(storageKey);
         }
       },
-      createCase: (input: CreateCaseInput) => {
-        const caseId = `case-${Date.now()}`;
+      createCase: async (input: CreateCaseInput) => {
+        const caseRef = buildCaseRef(input.sector, allCases);
         const today = new Date().toISOString().slice(0, 10);
         const nextCase: PropertyCase = {
-          id: caseId,
-          caseRef: buildCaseRef(input.sector, cases),
+          id: `case-${Date.now()}`,
+          caseRef,
           enquirySource: input.enquirySource,
           clientName: input.clientName,
           assetName: input.assetName,
@@ -242,11 +289,56 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           createdOn: today,
         };
 
-        setCases((current) => [nextCase, ...current]);
-        return caseId;
+        if (supabase) {
+          const { data, error } = await supabase
+            .from("cases")
+            .insert({
+              case_ref: nextCase.caseRef,
+              enquiry_source: nextCase.enquirySource,
+              client_name: nextCase.clientName,
+              asset_name: nextCase.assetName,
+              sector: nextCase.sector,
+              address: nextCase.address,
+              stage: nextCase.stage,
+              priority: nextCase.priority,
+              sla: nextCase.sla,
+              verifier_id: nextCase.verifierId ?? null,
+              advocate_id: nextCase.advocateId ?? null,
+              client_document_status: nextCase.clientDocumentStatus,
+              pending_client_documents_note: nextCase.pendingClientDocumentsNote,
+              office_notes: nextCase.officeNotes,
+              overall_risk: nextCase.overallRisk,
+              verifier_submitted: nextCase.verifierSubmitted,
+              advocate_completed: nextCase.advocateCompleted,
+              final_report_ready: nextCase.finalReportReady,
+              verifier_summary: nextCase.verifierSummary,
+              legal_summary: nextCase.legalSummary,
+              final_report_summary: nextCase.finalReportSummary,
+              structural_flags: nextCase.structuralFlags,
+              advocate_documents: nextCase.advocateDocuments,
+              legal_items: nextCase.legalItems,
+              sections: nextCase.sections,
+              final_report_notes: nextCase.finalReportNotes,
+              timeline: nextCase.timeline,
+              created_on: nextCase.createdOn,
+            })
+            .select()
+            .single();
+
+          if (error) {
+            throw error;
+          }
+
+          const mapped = mapDbCase(data);
+          setAllCases((current) => [mapped, ...current]);
+          return mapped.id;
+        }
+
+        setAllCases((current) => [nextCase, ...current]);
+        return nextCase.id;
       },
-      assignToAdvocate: (input: AdvocateHandoffInput) => {
-        setCases((current) =>
+      assignToAdvocate: async (input: AdvocateHandoffInput) => {
+        setAllCases((current) =>
           current.map((propertyCase) =>
             propertyCase.id !== input.caseId
               ? propertyCase
@@ -270,8 +362,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
-      submitVerifierCase: (caseId: string) => {
-        setCases((current) =>
+      submitVerifierCase: async (caseId: string) => {
+        setAllCases((current) =>
           current.map((propertyCase) =>
             propertyCase.id !== caseId
               ? propertyCase
@@ -289,8 +381,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
-      startAdvocateReview: (caseId: string) => {
-        setCases((current) =>
+      startAdvocateReview: async (caseId: string) => {
+        setAllCases((current) =>
           current.map((propertyCase) =>
             propertyCase.id !== caseId
               ? propertyCase
@@ -307,8 +399,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
-      completeAdvocateReview: (caseId: string) => {
-        setCases((current) =>
+      completeAdvocateReview: async (caseId: string) => {
+        setAllCases((current) =>
           current.map((propertyCase) =>
             propertyCase.id !== caseId
               ? propertyCase
@@ -326,9 +418,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
-      getCaseById: (caseId: string) => cases.find((propertyCase) => propertyCase.id === caseId),
+      getCaseById: (caseId: string) => allCases.find((propertyCase) => propertyCase.id === caseId),
     }),
-    [accessibleSops, cases, currentUser],
+    [accessibleSops, allCases, cases, currentUser, loading, users],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
@@ -345,7 +437,8 @@ export function useAppState() {
 }
 
 export function getOfficeMetrics(allCases: PropertyCase[], allUsers: AppUser[]): OfficeMetrics {
-  const enquiriesToday = allCases.filter((propertyCase) => propertyCase.createdOn === "2026-03-24").length;
+  const today = new Date().toISOString().slice(0, 10);
+  const enquiriesToday = allCases.filter((propertyCase) => propertyCase.createdOn === today).length;
   const inFieldCaseUsers = allCases
     .filter((propertyCase) => propertyCase.stage === "Verifier In Progress")
     .map((propertyCase) => allUsers.find((user) => user.id === propertyCase.verifierId)?.name)
