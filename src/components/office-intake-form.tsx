@@ -102,7 +102,7 @@ export function OfficeIntakeForm({
           <label className="field">
             <span className="field-label">
               Enquiry source
-              <em>Mandatory</em>
+              <em>*</em>
             </span>
             <input
               className="field-input"
@@ -115,7 +115,7 @@ export function OfficeIntakeForm({
           <label className="field">
             <span className="field-label">
               Client name
-              <em>Mandatory</em>
+              <em>*</em>
             </span>
             <input
               className="field-input"
@@ -128,7 +128,7 @@ export function OfficeIntakeForm({
           <label className="field">
             <span className="field-label">
               Verification line
-              <em>Mandatory</em>
+              <em>*</em>
             </span>
             <select
               className="field-input"
@@ -158,7 +158,7 @@ export function OfficeIntakeForm({
           <label className="field">
             <span className="field-label">
               Property / asset name
-              <em>Mandatory</em>
+              <em>*</em>
             </span>
             <input
               className="field-input"
@@ -171,7 +171,7 @@ export function OfficeIntakeForm({
           <label className="field">
             <span className="field-label">
               Assign verifier
-              <em>Mandatory</em>
+              <em>*</em>
             </span>
             <select
               className="field-input"
@@ -191,7 +191,7 @@ export function OfficeIntakeForm({
         <label className="field">
           <span className="field-label">
             Address / location
-            <em>Mandatory</em>
+            <em>*</em>
           </span>
           <textarea
             className="field-input"

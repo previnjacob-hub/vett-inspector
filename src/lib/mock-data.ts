@@ -83,6 +83,7 @@ export type PropertyCase = {
 export type AppUser = {
   id: string;
   name: string;
+  email?: string;
   role: Role;
   sectors: Sector[];
   title: string;
@@ -129,6 +130,7 @@ export const users: AppUser[] = [
   {
     id: "user-admin-1",
     name: "Ritika Vett",
+    email: "ritika@usevett.com",
     role: "admin",
     sectors: ["property-verification", "land-verification", "used-car-verification"],
     title: "Platform Admin",
@@ -136,6 +138,7 @@ export const users: AppUser[] = [
   {
     id: "user-office-1",
     name: "Karan Office",
+    email: "office@usevett.com",
     role: "office",
     sectors: ["property-verification", "land-verification"],
     title: "Operations Desk",
@@ -143,6 +146,7 @@ export const users: AppUser[] = [
   {
     id: "user-ver-1",
     name: "Naveen P",
+    email: "naveen@usevett.com",
     role: "verifier",
     sectors: ["property-verification"],
     title: "Apartment Verifier",
@@ -150,6 +154,7 @@ export const users: AppUser[] = [
   {
     id: "user-ver-2",
     name: "Rafiq S",
+    email: "rafiq@usevett.com",
     role: "verifier",
     sectors: ["land-verification"],
     title: "Land Verifier",
@@ -157,6 +162,7 @@ export const users: AppUser[] = [
   {
     id: "user-adv-1",
     name: "Adv. Meera Nair",
+    email: "meera@usevett.com",
     role: "advocate",
     sectors: ["property-verification"],
     title: "Property Advocate",
@@ -164,6 +170,7 @@ export const users: AppUser[] = [
   {
     id: "user-adv-2",
     name: "Adv. Ramesh B",
+    email: "ramesh@usevett.com",
     role: "advocate",
     sectors: ["land-verification"],
     title: "Land Advocate",

@@ -120,7 +120,7 @@ function FieldControl({
       <label className="field">
         <span className="field-label">
           {field.label}
-          {field.required ? <em>Mandatory</em> : null}
+          {field.required ? <em>*</em> : null}
         </span>
         <textarea
           className={error ? "field-input has-error" : "field-input"}
@@ -140,7 +140,7 @@ function FieldControl({
       <label className="field">
         <span className="field-label">
           {field.label}
-          {field.required ? <em>Mandatory</em> : null}
+          {field.required ? <em>*</em> : null}
         </span>
         <select
           className={error ? "field-input has-error" : "field-input"}
@@ -165,7 +165,7 @@ function FieldControl({
       <fieldset className="field fieldset">
         <legend className="field-label">
           {field.label}
-          {field.required ? <em>Mandatory</em> : null}
+          {field.required ? <em>*</em> : null}
         </legend>
         <div className="choice-grid">
           {field.options?.map((option) => (
@@ -194,7 +194,7 @@ function FieldControl({
     <label className="field">
       <span className="field-label">
         {field.label}
-        {field.required ? <em>Mandatory</em> : null}
+        {field.required ? <em>*</em> : null}
       </span>
       <input
         className={error ? "field-input has-error" : "field-input"}

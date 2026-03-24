@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AdminUserForm } from "@/components/admin-user-form";
 import { getOfficeMetrics, useAppState } from "@/components/app-state";
+import { AuthLoginForm } from "@/components/auth-login-form";
 import { OfficeIntakeForm } from "@/components/office-intake-form";
 import {
   futureSectors,
@@ -97,8 +99,19 @@ function CaseList({
 }
 
 export function VettMvp() {
-  const { accessibleSops, allCases, cases, createCase, currentUser, loading, loginAs, logout, users } =
-    useAppState();
+  const {
+    accessibleSops,
+    allCases,
+    authEnabled,
+    cases,
+    createCase,
+    currentUser,
+    loading,
+    loginAs,
+    loginWithPassword,
+    logout,
+    users,
+  } = useAppState();
   const [selectedCaseId, setSelectedCaseId] = useState<string>("");
 
   const selectedCase = useMemo(
@@ -134,7 +147,7 @@ export function VettMvp() {
           </div>
         </section>
 
-        <LoginPanel onLogin={loginAs} users={users} />
+        {authEnabled ? <AuthLoginForm onLogin={loginWithPassword} /> : <LoginPanel onLogin={loginAs} users={users} />}
 
         <section className="surface">
           <div className="section-heading">
@@ -222,6 +235,7 @@ export function VettMvp() {
             onCreateCase={createCase}
             users={users}
           />
+          {currentUser.role === "admin" ? <AdminUserForm /> : null}
         </>
       ) : null}
 

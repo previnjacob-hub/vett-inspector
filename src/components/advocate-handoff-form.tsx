@@ -69,7 +69,7 @@ export function AdvocateHandoffForm({
         <label className="field">
           <span className="field-label">
             Assign advocate
-            <em>Mandatory</em>
+            <em>*</em>
           </span>
           <select
             className="field-input"

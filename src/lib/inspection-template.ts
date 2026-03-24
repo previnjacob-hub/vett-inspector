@@ -237,25 +237,25 @@ export const apartmentInspectionSections: InspectionFormSection[] = [
   {
     id: "handoff",
     title: "Advocate Handoff",
-    description: "Only pass what the advocate needs for legal verification.",
+    description: "Record what was received at site. If a document was not submitted, office can follow up later.",
     fields: [
       {
         id: "saleDeedShared",
-        label: "Sale deed / title copy available",
+        label: "Sale deed / title copy received",
         type: "radio",
         options: ["Yes", "No"],
         required: true,
       },
       {
         id: "taxReceiptShared",
-        label: "Latest tax receipt available",
+        label: "Latest tax receipt received",
         type: "radio",
         options: ["Yes", "No"],
         required: true,
       },
       {
         id: "approvalDocShared",
-        label: "Approval / occupancy document available",
+        label: "Approval / occupancy document received",
         type: "radio",
         options: ["Yes", "No"],
         required: true,

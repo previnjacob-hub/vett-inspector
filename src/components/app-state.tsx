@@ -48,7 +48,9 @@ type AppStateValue = {
   users: AppUser[];
   accessibleSops: SopDocument[];
   loading: boolean;
+  authEnabled: boolean;
   loginAs: (userId: string) => void;
+  loginWithPassword: (email: string, password: string) => Promise<void>;
   logout: () => void;
   createCase: (input: CreateCaseInput) => Promise<string>;
   assignToAdvocate: (input: AdvocateHandoffInput) => Promise<void>;
@@ -177,7 +179,68 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [allCases, setAllCases] = useState<PropertyCase[]>(getFallbackCases);
   const [users, setUsers] = useState<AppUser[]>(getFallbackUsers);
   const [loading, setLoading] = useState(hasSupabaseEnv);
-  const [currentUser, setCurrentUser] = useState<AppUser | null>(readStoredUser(getFallbackUsers()));
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(
+    hasSupabaseEnv ? null : readStoredUser(getFallbackUsers()),
+  );
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    const client = supabase;
+    let active = true;
+
+    async function syncSessionUser() {
+      const {
+        data: { session },
+      } = await client.auth.getSession();
+
+      const email = session?.user.email;
+
+      if (!email) {
+        if (active) {
+          setCurrentUser(null);
+        }
+        return;
+      }
+
+      const { data, error } = await client.from("app_users").select("*").eq("email", email).single();
+
+      if (!error && data && active) {
+        setCurrentUser(mapDbUser(data));
+      }
+    }
+
+    void syncSessionUser();
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_event, session) => {
+      const email = session?.user.email;
+
+      if (!email) {
+        setCurrentUser(null);
+        return;
+      }
+
+      void client
+        .from("app_users")
+        .select("*")
+        .eq("email", email)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setCurrentUser(mapDbUser(data));
+          }
+        });
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -194,7 +257,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!usersResult.error && usersResult.data) {
         const mappedUsers = usersResult.data.map(mapDbUser);
         setUsers(mappedUsers);
-        setCurrentUser(readStoredUser(mappedUsers));
+        if (!supabase) {
+          setCurrentUser(readStoredUser(mappedUsers));
+        }
       }
 
       if (!casesResult.error && casesResult.data) {
@@ -229,7 +294,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       users,
       accessibleSops,
       loading,
+      authEnabled: hasSupabaseEnv,
       loginAs: (userId: string) => {
+        if (supabase) {
+          return;
+        }
+
         const nextUser = users.find((user) => user.id === userId) ?? null;
         setCurrentUser(nextUser);
 
@@ -241,10 +311,30 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           }
         }
       },
+      loginWithPassword: async (email: string, password: string) => {
+        if (!supabase) {
+          const nextUser = users.find((user) => user.email === email) ?? null;
+          setCurrentUser(nextUser);
+          return;
+        }
+
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          throw error;
+        }
+      },
       logout: () => {
-        setCurrentUser(null);
-        if (typeof window !== "undefined") {
-          window.localStorage.removeItem(storageKey);
+        if (supabase) {
+          void supabase.auth.signOut();
+        } else {
+          setCurrentUser(null);
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem(storageKey);
+          }
         }
       },
       createCase: async (input: CreateCaseInput) => {

@@ -42,6 +42,7 @@ type DbCaseRow = {
 type DbUserRow = {
   id: string;
   name: string;
+  email?: string | null;
   role: AppUser["role"];
   title: string;
   sectors: AppUser["sectors"] | null;
@@ -51,6 +52,7 @@ export function mapDbUser(row: DbUserRow): AppUser {
   return {
     id: row.id,
     name: row.name,
+    email: row.email ?? undefined,
     role: row.role,
     title: row.title,
     sectors: row.sectors ?? [],
