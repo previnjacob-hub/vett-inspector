@@ -121,6 +121,18 @@ function appendTimeline(propertyCase: PropertyCase, title: string, owner: string
   ];
 }
 
+async function persistCaseUpdate(caseId: string, updates: Record<string, unknown>) {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("cases").update(updates).eq("id", caseId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 function buildCaseRef(sector: Sector, currentCases: PropertyCase[]) {
   const prefix =
     sector === "property-verification"
@@ -338,6 +350,32 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         return nextCase.id;
       },
       assignToAdvocate: async (input: AdvocateHandoffInput) => {
+        const targetCase = allCases.find((propertyCase) => propertyCase.id === input.caseId);
+
+        if (!targetCase) {
+          return;
+        }
+
+        const nextTimeline = appendTimeline(
+          targetCase,
+          "Advocate assigned",
+          "Office Team",
+          "Office shared legal details and attachments with the selected advocate.",
+        );
+        const nextLegalSummary =
+          input.pendingDocumentsNote.trim().length > 0
+            ? `Legal packet shared. Pending from client: ${input.pendingDocumentsNote}`
+            : "Legal packet shared with advocate from office desk.";
+
+        await persistCaseUpdate(input.caseId, {
+          advocate_id: input.advocateId,
+          stage: "Assigned to Advocate",
+          advocate_documents: input.sharedDocuments,
+          pending_client_documents_note: input.pendingDocumentsNote,
+          legal_summary: nextLegalSummary,
+          timeline: nextTimeline,
+        });
+
         setAllCases((current) =>
           current.map((propertyCase) =>
             propertyCase.id !== input.caseId
@@ -348,21 +386,32 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
                   stage: "Assigned to Advocate",
                   advocateDocuments: input.sharedDocuments,
                   pendingClientDocumentsNote: input.pendingDocumentsNote,
-                  legalSummary:
-                    input.pendingDocumentsNote.trim().length > 0
-                      ? `Legal packet shared. Pending from client: ${input.pendingDocumentsNote}`
-                      : "Legal packet shared with advocate from office desk.",
-                  timeline: appendTimeline(
-                    propertyCase,
-                    "Advocate assigned",
-                    "Office Team",
-                    "Office shared legal details and attachments with the selected advocate.",
-                  ),
+                  legalSummary: nextLegalSummary,
+                  timeline: nextTimeline,
                 },
           ),
         );
       },
       submitVerifierCase: async (caseId: string) => {
+        const targetCase = allCases.find((propertyCase) => propertyCase.id === caseId);
+
+        if (!targetCase) {
+          return;
+        }
+
+        const nextTimeline = appendTimeline(
+          targetCase,
+          "Verifier submitted",
+          "Verifier",
+          "Field report finished and returned to office for advocate assignment.",
+        );
+
+        await persistCaseUpdate(caseId, {
+          stage: "Verifier Submitted",
+          verifier_submitted: true,
+          timeline: nextTimeline,
+        });
+
         setAllCases((current) =>
           current.map((propertyCase) =>
             propertyCase.id !== caseId
@@ -371,17 +420,30 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
                   ...propertyCase,
                   stage: "Verifier Submitted",
                   verifierSubmitted: true,
-                  timeline: appendTimeline(
-                    propertyCase,
-                    "Verifier submitted",
-                    "Verifier",
-                    "Field report finished and returned to office for advocate assignment.",
-                  ),
+                  timeline: nextTimeline,
                 },
           ),
         );
       },
       startAdvocateReview: async (caseId: string) => {
+        const targetCase = allCases.find((propertyCase) => propertyCase.id === caseId);
+
+        if (!targetCase) {
+          return;
+        }
+
+        const nextTimeline = appendTimeline(
+          targetCase,
+          "Legal review started",
+          "Advocate",
+          "Advocate marked the case in progress.",
+        );
+
+        await persistCaseUpdate(caseId, {
+          stage: "Advocate In Progress",
+          timeline: nextTimeline,
+        });
+
         setAllCases((current) =>
           current.map((propertyCase) =>
             propertyCase.id !== caseId
@@ -389,17 +451,31 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
               : {
                   ...propertyCase,
                   stage: "Advocate In Progress",
-                  timeline: appendTimeline(
-                    propertyCase,
-                    "Legal review started",
-                    "Advocate",
-                    "Advocate marked the case in progress.",
-                  ),
+                  timeline: nextTimeline,
                 },
           ),
         );
       },
       completeAdvocateReview: async (caseId: string) => {
+        const targetCase = allCases.find((propertyCase) => propertyCase.id === caseId);
+
+        if (!targetCase) {
+          return;
+        }
+
+        const nextTimeline = appendTimeline(
+          targetCase,
+          "Legal review completed",
+          "Advocate",
+          "Legal report uploaded and returned to office team.",
+        );
+
+        await persistCaseUpdate(caseId, {
+          stage: "Advocate Completed",
+          advocate_completed: true,
+          timeline: nextTimeline,
+        });
+
         setAllCases((current) =>
           current.map((propertyCase) =>
             propertyCase.id !== caseId
@@ -408,12 +484,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
                   ...propertyCase,
                   stage: "Advocate Completed",
                   advocateCompleted: true,
-                  timeline: appendTimeline(
-                    propertyCase,
-                    "Legal review completed",
-                    "Advocate",
-                    "Legal report uploaded and returned to office team.",
-                  ),
+                  timeline: nextTimeline,
                 },
           ),
         );

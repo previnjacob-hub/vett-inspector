@@ -7,7 +7,7 @@ import { type AppUser, type PropertyCase } from "@/lib/mock-data";
 type AdvocateHandoffFormProps = {
   propertyCase: PropertyCase;
   users: AppUser[];
-  onAssign: (input: AdvocateHandoffInput) => void;
+  onAssign: (input: AdvocateHandoffInput) => Promise<void>;
 };
 
 export function AdvocateHandoffForm({
@@ -31,8 +31,9 @@ export function AdvocateHandoffForm({
     propertyCase.pendingClientDocumentsNote,
   );
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!advocateId) {
@@ -45,13 +46,21 @@ export function AdvocateHandoffForm({
       .map((entry) => entry.trim())
       .filter(Boolean);
 
-    onAssign({
-      caseId: propertyCase.id,
-      advocateId,
-      sharedDocuments: docs,
-      pendingDocumentsNote,
-    });
-    setError("");
+    setSubmitting(true);
+
+    try {
+      await onAssign({
+        caseId: propertyCase.id,
+        advocateId,
+        sharedDocuments: docs,
+        pendingDocumentsNote,
+      });
+      setError("");
+    } catch {
+      setError("Could not pass case to advocate. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -101,8 +110,8 @@ export function AdvocateHandoffForm({
       {error ? <div className="field-error">{error}</div> : null}
 
       <div className="sticky-buttons">
-        <button className="primary-button" type="submit">
-          Pass to advocate
+        <button className="primary-button" disabled={submitting} type="submit">
+          {submitting ? "Passing..." : "Pass to advocate"}
         </button>
       </div>
     </form>
