@@ -10,7 +10,7 @@ import {
 type InspectorFormProps = {
   caseId: string;
   inspector: string;
-  onSuccessfulSubmit?: () => void;
+  onSuccessfulSubmit?: () => Promise<void>;
 };
 
 type FormValues = Record<string, string>;
@@ -222,6 +222,7 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
     initialDraft ? "Draft restored from this device" : "Draft not saved yet",
   );
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [locationState, setLocationState] = useState<LocationState>(
     initialDraft?.locationState ?? getEmptyLocationState(),
   );
@@ -326,7 +327,7 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
     event.target.value = "";
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const nextErrors = validate(values, locationState.status === "Captured", evidenceFiles.length);
     setErrors(nextErrors);
 
@@ -348,8 +349,14 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
     }
 
     saveDraft();
-    setSubmitted(true);
-    onSuccessfulSubmit?.();
+    setSubmitting(true);
+
+    try {
+      await onSuccessfulSubmit?.();
+      setSubmitted(true);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -555,8 +562,8 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
           <button className="secondary-button" onClick={saveDraft} type="button">
             Save draft
           </button>
-          <button className="primary-button" onClick={handleSubmit} type="button">
-            Final submit
+          <button className="primary-button" onClick={() => void handleSubmit()} type="button">
+            {submitting ? "Submitting..." : "Final submit"}
           </button>
         </div>
       </div>
