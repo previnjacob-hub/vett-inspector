@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { AdminReassignPanel } from "@/components/admin-reassign-panel";
 import { AdvocateHandoffForm } from "@/components/advocate-handoff-form";
 import { AdvocateReviewForm } from "@/components/advocate-review-form";
 import { FinalReportForm } from "@/components/final-report-form";
@@ -45,6 +46,8 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
     assignToAdvocate,
     completeAdvocateReview,
     currentUser,
+    reassignAdvocate,
+    reassignVerifier,
     saveFinalReport,
     startAdvocateReview,
     submitVerifierCase,
@@ -163,6 +166,15 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
           </article>
         </div>
       </section>
+
+      {currentUser.role === "admin" ? (
+        <AdminReassignPanel
+          onReassignAdvocate={reassignAdvocate}
+          onReassignVerifier={reassignVerifier}
+          propertyCase={propertyCase}
+          users={users}
+        />
+      ) : null}
 
       {(currentUser.role === "office" || currentUser.role === "admin" || currentUser.role === "verifier") && (
         <section className="surface">

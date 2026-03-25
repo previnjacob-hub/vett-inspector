@@ -56,6 +56,11 @@ export type FinalReportInput = {
   reportDocuments: string[];
 };
 
+export type ReassignInput = {
+  caseId: string;
+  userId: string;
+};
+
 type AppStateValue = {
   cases: PropertyCase[];
   allCases: PropertyCase[];
@@ -73,6 +78,8 @@ type AppStateValue = {
   startAdvocateReview: (caseId: string) => Promise<void>;
   completeAdvocateReview: (input: AdvocateCompletionInput) => Promise<void>;
   saveFinalReport: (input: FinalReportInput) => Promise<void>;
+  reassignVerifier: (input: ReassignInput) => Promise<void>;
+  reassignAdvocate: (input: ReassignInput) => Promise<void>;
   getCaseById: (caseId: string) => PropertyCase | undefined;
 };
 
@@ -697,6 +704,70 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
                   finalReportSummary: input.customerSummary,
                   finalReportNotes: nextNotes,
                   advocateDocuments: nextDocuments,
+                  timeline: nextTimeline,
+                },
+          ),
+        );
+      },
+      reassignVerifier: async (input: ReassignInput) => {
+        const targetCase = allCases.find((propertyCase) => propertyCase.id === input.caseId);
+
+        if (!targetCase) {
+          return;
+        }
+
+        const assignee = users.find((user) => user.id === input.userId);
+        const nextTimeline = appendTimeline(
+          targetCase,
+          "Verifier reassigned",
+          "Admin",
+          `Verifier reassigned to ${assignee?.name ?? "new verifier"}.`,
+        );
+
+        await persistCaseUpdate(input.caseId, {
+          verifier_id: input.userId,
+          timeline: nextTimeline,
+        });
+
+        setAllCases((current) =>
+          current.map((propertyCase) =>
+            propertyCase.id !== input.caseId
+              ? propertyCase
+              : {
+                  ...propertyCase,
+                  verifierId: input.userId,
+                  timeline: nextTimeline,
+                },
+          ),
+        );
+      },
+      reassignAdvocate: async (input: ReassignInput) => {
+        const targetCase = allCases.find((propertyCase) => propertyCase.id === input.caseId);
+
+        if (!targetCase) {
+          return;
+        }
+
+        const assignee = users.find((user) => user.id === input.userId);
+        const nextTimeline = appendTimeline(
+          targetCase,
+          "Advocate reassigned",
+          "Admin",
+          `Advocate reassigned to ${assignee?.name ?? "new advocate"}.`,
+        );
+
+        await persistCaseUpdate(input.caseId, {
+          advocate_id: input.userId,
+          timeline: nextTimeline,
+        });
+
+        setAllCases((current) =>
+          current.map((propertyCase) =>
+            propertyCase.id !== input.caseId
+              ? propertyCase
+              : {
+                  ...propertyCase,
+                  advocateId: input.userId,
                   timeline: nextTimeline,
                 },
           ),
