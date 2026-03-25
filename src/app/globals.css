@@ -917,7 +917,6 @@ textarea.field-input {
   }
 
   .sticky-actions,
-  .field-label,
   .capture-header {
     flex-direction: column;
     align-items: flex-start;

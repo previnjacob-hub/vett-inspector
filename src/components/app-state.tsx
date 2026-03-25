@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { User } from "@supabase/supabase-js";
 import { mapDbCase, mapDbUser } from "@/lib/db-mappers";
 import {
   initialCases,
@@ -175,15 +176,33 @@ function getFallbackCases() {
   return initialCases;
 }
 
-async function getProfileByEmail(email: string, retries = 0) {
+async function getProfileForAuthUser(user: Pick<User, "id" | "email">, retries = 0) {
   if (!supabase) {
     return null;
   }
 
-  const { data, error } = await supabase.from("app_users").select("*").eq("email", email).maybeSingle();
+  const normalizedEmail = user.email?.trim().toLowerCase();
 
-  if (!error && data) {
-    return mapDbUser(data);
+  if (normalizedEmail) {
+    const { data, error } = await supabase
+      .from("app_users")
+      .select("*")
+      .ilike("email", normalizedEmail)
+      .maybeSingle();
+
+    if (!error && data) {
+      return mapDbUser(data);
+    }
+  }
+
+  const { data: idData, error: idError } = await supabase
+    .from("app_users")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!idError && idData) {
+    return mapDbUser(idData);
   }
 
   if (retries <= 0) {
@@ -191,7 +210,7 @@ async function getProfileByEmail(email: string, retries = 0) {
   }
 
   await new Promise((resolve) => window.setTimeout(resolve, 350));
-  return getProfileByEmail(email, retries - 1);
+  return getProfileForAuthUser(user, retries - 1);
 }
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
@@ -215,16 +234,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         data: { session },
       } = await client.auth.getSession();
 
-      const email = session?.user.email;
+      const authUser = session?.user;
 
-      if (!email) {
+      if (!authUser) {
         if (active) {
           setCurrentUser(null);
         }
         return;
       }
 
-      const profile = await getProfileByEmail(email, 2);
+      const profile = await getProfileForAuthUser(authUser, 2);
 
       if (active) {
         setCurrentUser(profile);
@@ -236,14 +255,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, session) => {
-      const email = session?.user.email;
+      const authUser = session?.user;
 
-      if (!email) {
+      if (!authUser) {
         setCurrentUser(null);
         return;
       }
 
-      void getProfileByEmail(email, 2).then((profile) => {
+      void getProfileForAuthUser(authUser, 2).then((profile) => {
         setCurrentUser(profile);
       });
     });
@@ -330,8 +349,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
           password,
         });
 
@@ -339,12 +360,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           throw error;
         }
 
-        const profile = await getProfileByEmail(email, 3);
+        const authUser = data.user;
+
+        if (!authUser) {
+          throw new Error("Login succeeded, but the account session could not be loaded.");
+        }
+
+        const profile = await getProfileForAuthUser(authUser, 3);
 
         if (!profile) {
           await supabase.auth.signOut();
           throw new Error(
-            "Your account exists, but no portal role is linked yet. Ask admin to create or fix your profile in the portal.",
+            "Your account exists, but no portal role is linked yet. Ask admin to create or fix your portal user with the same email.",
           );
         }
 

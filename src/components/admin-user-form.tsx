@@ -82,26 +82,17 @@ export function AdminUserForm({ onCreated }: { onCreated?: () => void }) {
       <form className="intake-form" onSubmit={handleSubmit}>
         <div className="field-stack grid-two">
           <label className="field">
-            <span className="field-label">
-              Name
-              <em>*</em>
-            </span>
+            <span className="field-label">Name*</span>
             <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
 
           <label className="field">
-            <span className="field-label">
-              Email
-              <em>*</em>
-            </span>
+            <span className="field-label">Email*</span>
             <input className="field-input" value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
 
           <label className="field">
-            <span className="field-label">
-              Password
-              <em>*</em>
-            </span>
+            <span className="field-label">Password*</span>
             <input
               className="field-input"
               type="password"
@@ -111,18 +102,12 @@ export function AdminUserForm({ onCreated }: { onCreated?: () => void }) {
           </label>
 
           <label className="field">
-            <span className="field-label">
-              Title
-              <em>*</em>
-            </span>
+            <span className="field-label">Title*</span>
             <input className="field-input" value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
 
           <label className="field">
-            <span className="field-label">
-              Role
-              <em>*</em>
-            </span>
+            <span className="field-label">Role*</span>
             <select className="field-input" value={role} onChange={(e) => setRole(e.target.value as Role)}>
               {roleOptions.map((option) => (
                 <option key={option} value={option}>
@@ -134,10 +119,7 @@ export function AdminUserForm({ onCreated }: { onCreated?: () => void }) {
         </div>
 
         <fieldset className="field fieldset">
-          <legend className="field-label">
-            Sector access
-            <em>*</em>
-          </legend>
+          <legend className="field-label">Sector access*</legend>
           <div className="choice-grid">
             {sectorOptions.map((sector) => (
               <label

@@ -45,10 +45,7 @@ export function AuthLoginForm({
 
       <form className="intake-form" onSubmit={handleSubmit}>
         <label className="field">
-          <span className="field-label">
-            Email
-            <em>*</em>
-          </span>
+          <span className="field-label">Email*</span>
           <input
             className="field-input"
             placeholder="name@usevett.com"
@@ -59,10 +56,7 @@ export function AuthLoginForm({
         </label>
 
         <label className="field">
-          <span className="field-label">
-            Password
-            <em>*</em>
-          </span>
+          <span className="field-label">Password*</span>
           <input
             className="field-input"
             placeholder="Password"

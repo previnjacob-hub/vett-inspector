@@ -15,8 +15,10 @@ export async function POST(request: Request) {
     sectors: string[];
   };
 
+  const normalizedEmail = body.email.trim().toLowerCase();
+
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email: body.email,
+    email: normalizedEmail,
     password: body.password,
     email_confirm: true,
     user_metadata: {
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
 
   const { error: profileError } = await supabaseAdmin.from("app_users").upsert({
     id: authUser.user.id,
-    email: body.email,
+    email: normalizedEmail,
     name: body.name,
     role: body.role,
     title: body.title,
