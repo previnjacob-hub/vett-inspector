@@ -19,6 +19,12 @@ export async function POST(request: Request) {
     email: body.email,
     password: body.password,
     email_confirm: true,
+    user_metadata: {
+      name: body.name,
+      role: body.role,
+      title: body.title,
+      sectors: body.sectors,
+    },
   });
 
   if (authError || !authUser.user) {

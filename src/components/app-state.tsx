@@ -175,6 +175,25 @@ function getFallbackCases() {
   return initialCases;
 }
 
+async function getProfileByEmail(email: string, retries = 0) {
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase.from("app_users").select("*").eq("email", email).maybeSingle();
+
+  if (!error && data) {
+    return mapDbUser(data);
+  }
+
+  if (retries <= 0) {
+    return null;
+  }
+
+  await new Promise((resolve) => window.setTimeout(resolve, 350));
+  return getProfileByEmail(email, retries - 1);
+}
+
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [allCases, setAllCases] = useState<PropertyCase[]>(getFallbackCases);
   const [users, setUsers] = useState<AppUser[]>(getFallbackUsers);
@@ -205,10 +224,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { data, error } = await client.from("app_users").select("*").eq("email", email).single();
+      const profile = await getProfileByEmail(email, 2);
 
-      if (!error && data && active) {
-        setCurrentUser(mapDbUser(data));
+      if (active) {
+        setCurrentUser(profile);
       }
     }
 
@@ -224,16 +243,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      void client
-        .from("app_users")
-        .select("*")
-        .eq("email", email)
-        .single()
-        .then(({ data, error }) => {
-          if (!error && data) {
-            setCurrentUser(mapDbUser(data));
-          }
-        });
+      void getProfileByEmail(email, 2).then((profile) => {
+        setCurrentUser(profile);
+      });
     });
 
     return () => {
@@ -326,6 +338,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         if (error) {
           throw error;
         }
+
+        const profile = await getProfileByEmail(email, 3);
+
+        if (!profile) {
+          await supabase.auth.signOut();
+          throw new Error(
+            "Your account exists, but no portal role is linked yet. Ask admin to create or fix your profile in the portal.",
+          );
+        }
+
+        setCurrentUser(profile);
       },
       logout: () => {
         if (supabase) {

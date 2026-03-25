@@ -19,8 +19,12 @@ export function AuthLoginForm({
 
     try {
       await onLogin(email, password);
-    } catch {
-      setError("Login failed. Check email and password.");
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error
+          ? loginError.message
+          : "Login failed. Check email and password.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -32,6 +36,10 @@ export function AuthLoginForm({
         <div>
           <span className="eyebrow">Login</span>
           <h2>Sign in with your Vett account</h2>
+          <p className="form-intro">
+            Use the email and password created for your portal role. If your access was created only
+            in Supabase and not assigned a portal role, sign-in will be blocked here.
+          </p>
         </div>
       </div>
 

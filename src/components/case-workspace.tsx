@@ -198,10 +198,12 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
         </section>
       )}
 
-      {currentUser.role === "verifier" && propertyCase.sector === "property-verification" ? (
+      {currentUser.role === "verifier" &&
+      (propertyCase.sector === "property-verification" || propertyCase.sector === "land-verification") ? (
         <InspectorForm
           caseId={propertyCase.id}
           inspector={currentUser.name}
+          sector={propertyCase.sector}
           onSuccessfulSubmit={() => submitVerifierCase(propertyCase.id)}
         />
       ) : null}

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AdminUserForm } from "@/components/admin-user-form";
@@ -46,6 +47,7 @@ function LoginPanel({
             <span className="small-note">
               {user.role} | {user.sectors.map((sector) => sectorLabels[sector]).join(", ")}
             </span>
+            <span className="card-action-hint">Open portal</span>
           </button>
         ))}
       </div>
@@ -92,6 +94,7 @@ function CaseList({
             <span className={getRiskClass(item.overallRisk)}>{item.overallRisk} risk</span>
             <span>{item.sla}</span>
           </div>
+          <span className="card-action-hint">Click to open case</span>
         </button>
       ))}
     </div>
@@ -138,12 +141,20 @@ export function VettMvp() {
       <div className="workspace-grid">
         <section className="surface hero-panel">
           <div className="hero-copy">
+            <div className="brand-lockup">
+              <Image alt="Vett" className="brand-mark" height={40} priority src="/vett-mark.svg" width={148} />
+            </div>
             <span className="eyebrow">Vett Workflow Portal</span>
-            <h1>Built around intake, verification, legal review, and final report delivery.</h1>
+            <h1>Property verification operations, cleaned up for field, legal, and office teams.</h1>
             <p>
               Office team creates the case, verifier collects field evidence, advocate uploads legal
               report, and office team prepares the branded combined report for client sharing.
             </p>
+            <div className="hero-badges">
+              <span className="document-pill">Apartment</span>
+              <span className="document-pill">Land</span>
+              <span className="document-pill">Used Car later</span>
+            </div>
           </div>
         </section>
 
@@ -173,14 +184,17 @@ export function VettMvp() {
   return (
     <div className="workspace-grid">
       <section className="surface hero-panel">
-        <div className="hero-copy">
-          <span className="eyebrow">{currentUser.role} Portal</span>
-          <h1>{portalTitles[currentUser.role]}</h1>
-          <p>
-            Logged in as {currentUser.name}. Users like this will later be created in the backend by
-            role and sector access.
-          </p>
-        </div>
+          <div className="hero-copy">
+            <div className="brand-lockup">
+              <Image alt="Vett" className="brand-mark" height={36} priority src="/vett-mark.svg" width={134} />
+            </div>
+            <span className="eyebrow">{currentUser.role} Portal</span>
+            <h1>{portalTitles[currentUser.role]}</h1>
+            <p>
+              Logged in as {currentUser.name}. Access is filtered by role and sector, and the queue
+              only shows work meant for this user.
+            </p>
+          </div>
         <div className="hero-actions">
           <button className="secondary-button" onClick={logout} type="button">
             Switch login

@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState, type ChangeEvent } from "react";
+import type { Sector } from "@/lib/mock-data";
 import {
-  apartmentInspectionSections,
+  getInspectionSections,
   getInitialFormValues,
   type InspectionField,
 } from "@/lib/inspection-template";
@@ -10,6 +11,7 @@ import {
 type InspectorFormProps = {
   caseId: string;
   inspector: string;
+  sector: Sector;
   onSuccessfulSubmit?: () => Promise<void>;
 };
 
@@ -64,10 +66,15 @@ function readDraft(caseId: string): DraftPayload | null {
   }
 }
 
-function validate(values: FormValues, hasLocation: boolean, evidenceCount: number) {
+function validate(
+  values: FormValues,
+  hasLocation: boolean,
+  evidenceCount: number,
+  sections: ReturnType<typeof getInspectionSections>,
+) {
   const errors: FormErrors = {};
 
-  for (const section of apartmentInspectionSections) {
+  for (const section of sections) {
     for (const field of section.fields) {
       if (field.required && isBlank(values[field.id] ?? "")) {
         errors[field.id] = "This is mandatory.";
@@ -86,11 +93,14 @@ function validate(values: FormValues, hasLocation: boolean, evidenceCount: numbe
   return errors;
 }
 
-function getCompletionCount(values: FormValues) {
+function getCompletionCount(
+  values: FormValues,
+  sections: ReturnType<typeof getInspectionSections>,
+) {
   let completed = 0;
   let total = 0;
 
-  for (const section of apartmentInspectionSections) {
+  for (const section of sections) {
     for (const field of section.fields) {
       if (field.required) {
         total += 1;
@@ -118,10 +128,7 @@ function FieldControl({
   if (field.type === "textarea") {
     return (
       <label className="field">
-        <span className="field-label">
-          {field.label}
-          {field.required ? <em>*</em> : null}
-        </span>
+        <span className="field-label">{field.label}</span>
         <textarea
           className={error ? "field-input has-error" : "field-input"}
           placeholder={field.placeholder}
@@ -138,10 +145,7 @@ function FieldControl({
   if (field.type === "select") {
     return (
       <label className="field">
-        <span className="field-label">
-          {field.label}
-          {field.required ? <em>*</em> : null}
-        </span>
+        <span className="field-label">{field.label}</span>
         <select
           className={error ? "field-input has-error" : "field-input"}
           value={value}
@@ -163,10 +167,7 @@ function FieldControl({
   if (field.type === "radio") {
     return (
       <fieldset className="field fieldset">
-        <legend className="field-label">
-          {field.label}
-          {field.required ? <em>*</em> : null}
-        </legend>
+        <legend className="field-label">{field.label}</legend>
         <div className="choice-grid">
           {field.options?.map((option) => (
             <label
@@ -192,10 +193,7 @@ function FieldControl({
 
   return (
     <label className="field">
-      <span className="field-label">
-        {field.label}
-        {field.required ? <em>*</em> : null}
-      </span>
+      <span className="field-label">{field.label}</span>
       <input
         className={error ? "field-input has-error" : "field-input"}
         placeholder={field.placeholder}
@@ -209,11 +207,12 @@ function FieldControl({
   );
 }
 
-export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: InspectorFormProps) {
+export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }: InspectorFormProps) {
+  const inspectionSections = useMemo(() => getInspectionSections(sector), [sector]);
   const initialDraft = readDraft(caseId);
 
   const [values, setValues] = useState<FormValues>(() => ({
-    ...getInitialFormValues(),
+    ...getInitialFormValues(sector),
     ...(initialDraft?.values ?? {}),
   }));
   const [errors, setErrors] = useState<FormErrors>({});
@@ -233,9 +232,9 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
     initialDraft?.documentFiles ?? [],
   );
 
-  const completion = useMemo(() => getCompletionCount(values), [values]);
-  const activeConfig = apartmentInspectionSections[activeSection];
-  const handoffSectionIndex = apartmentInspectionSections.findIndex(
+  const completion = useMemo(() => getCompletionCount(values, inspectionSections), [inspectionSections, values]);
+  const activeConfig = inspectionSections[activeSection];
+  const handoffSectionIndex = inspectionSections.findIndex(
     (section) => section.id === "handoff",
   );
 
@@ -328,11 +327,16 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
   }
 
   async function handleSubmit() {
-    const nextErrors = validate(values, locationState.status === "Captured", evidenceFiles.length);
+    const nextErrors = validate(
+      values,
+      locationState.status === "Captured",
+      evidenceFiles.length,
+      inspectionSections,
+    );
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
-      const firstErrorField = apartmentInspectionSections.findIndex((section) =>
+      const firstErrorField = inspectionSections.findIndex((section) =>
         section.fields.some((field) => nextErrors[field.id]),
       );
 
@@ -364,7 +368,7 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
       <div className="section-heading">
         <div>
           <span className="eyebrow">Inspector capture</span>
-          <h2>Mobile-first mandatory checklist</h2>
+          <h2>{sector === "land-verification" ? "Land verification checklist" : "Apartment / house checklist"}</h2>
         </div>
         <span className="small-note">{inspector}</span>
       </div>
@@ -374,7 +378,7 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
           <strong>
             {completion.completed}/{completion.total}
           </strong>
-          <span>mandatory checks completed</span>
+          <span>required checks completed</span>
         </div>
         <div className="progress-track" aria-hidden="true">
           <div
@@ -385,7 +389,7 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
       </div>
 
       <div className="mobile-tabs">
-        {apartmentInspectionSections.map((section, index) => (
+        {inspectionSections.map((section, index) => (
           <button
             key={section.id}
             className={index === activeSection ? "mobile-tab active" : "mobile-tab"}
@@ -408,7 +412,7 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
         </div>
 
         <div className="field-stack">
-          {activeConfig.id === "arrival" ? (
+          {activeConfig.id === "arrival" || activeConfig.id === "basic" || activeConfig.id === "location" ? (
             <div className="capture-panel">
               <div className="capture-header">
                 <div>
@@ -421,7 +425,7 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
               </div>
               <p>
                 Ask the inspector to allow location access on mobile so the visit is tied to the
-                property entrance.
+                {sector === "land-verification" ? " land entrance." : " property entrance."}
               </p>
               <div className="capture-status-row">
                 <span
@@ -443,7 +447,7 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
             </div>
           ) : null}
 
-          {activeConfig.id === "utilities" ? (
+          {["utilities", "structure", "plumbing", "electrical", "fittings", "common", "boundary", "access", "physical", "assessment"].includes(activeConfig.id) ? (
             <div className="capture-panel">
               <div className="capture-header">
                 <div>
@@ -503,8 +507,8 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
                 </label>
               </div>
               <p>
-                Attach only the papers that should move to legal review, like sale deed copy, tax
-                receipt, approvals, or other title-related records.
+                Upload whatever the client or seller shared at site. Missing documents can still be
+                marked here so office can follow up later.
               </p>
               <div className="upload-list">
                 {documentFiles.length === 0 ? (
@@ -549,12 +553,12 @@ export function InspectorForm({ caseId, inspector, onSuccessfulSubmit }: Inspect
             Previous
           </button>
           <button
-            className="secondary-button"
-            onClick={() =>
-              setActiveSection((current) =>
-                Math.min(current + 1, apartmentInspectionSections.length - 1),
-              )
-            }
+                className="secondary-button"
+                onClick={() =>
+                  setActiveSection((current) =>
+                    Math.min(current + 1, inspectionSections.length - 1),
+                  )
+                }
             type="button"
           >
             {activeSection === handoffSectionIndex ? "Stay on handoff" : "Next"}

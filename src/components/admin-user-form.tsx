@@ -10,7 +10,7 @@ const sectorOptions: Sector[] = [
   "used-car-verification",
 ];
 
-export function AdminUserForm() {
+export function AdminUserForm({ onCreated }: { onCreated?: () => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -62,6 +62,7 @@ export function AdminUserForm() {
       setTitle("");
       setRole("office");
       setSectors(["property-verification"]);
+      onCreated?.();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not create user.");
     } finally {
