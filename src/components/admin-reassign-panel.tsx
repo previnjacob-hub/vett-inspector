@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type ReassignInput } from "@/components/app-state";
 import { type AppUser, type PropertyCase } from "@/lib/mock-data";
 
@@ -26,6 +26,15 @@ export function AdminReassignPanel({
   const [verifierId, setVerifierId] = useState(propertyCase.verifierId ?? "");
   const [advocateId, setAdvocateId] = useState(propertyCase.advocateId ?? "");
   const [submitting, setSubmitting] = useState<"" | "verifier" | "advocate">("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const currentVerifier = users.find((user) => user.id === propertyCase.verifierId);
+  const currentAdvocate = users.find((user) => user.id === propertyCase.advocateId);
+
+  useEffect(() => {
+    setVerifierId(propertyCase.verifierId ?? "");
+    setAdvocateId(propertyCase.advocateId ?? "");
+  }, [propertyCase.advocateId, propertyCase.verifierId]);
 
   return (
     <section className="surface">
@@ -39,6 +48,9 @@ export function AdminReassignPanel({
       <div className="field-stack grid-two">
         <label className="field">
           <span className="field-label">Verifier</span>
+          <span className="small-note">
+            Current: {currentVerifier ? `${currentVerifier.name} | ${currentVerifier.title}` : "Not assigned"}
+          </span>
           <select className="field-input" value={verifierId} onChange={(event) => setVerifierId(event.target.value)}>
             <option value="">Select verifier</option>
             {verifierOptions.map((user) => (
@@ -50,11 +62,17 @@ export function AdminReassignPanel({
           <div className="sticky-buttons">
             <button
               className="secondary-button"
-              disabled={!verifierId || submitting !== ""}
+              disabled={!verifierId || submitting !== "" || verifierId === propertyCase.verifierId}
               onClick={async () => {
                 setSubmitting("verifier");
+                setMessage("");
+                setError("");
                 try {
                   await onReassignVerifier({ caseId: propertyCase.id, userId: verifierId });
+                  const nextVerifier = users.find((user) => user.id === verifierId);
+                  setMessage(`Verifier reassigned to ${nextVerifier?.name ?? "selected verifier"}.`);
+                } catch {
+                  setError("Could not reassign verifier.");
                 } finally {
                   setSubmitting("");
                 }
@@ -68,6 +86,9 @@ export function AdminReassignPanel({
 
         <label className="field">
           <span className="field-label">Advocate</span>
+          <span className="small-note">
+            Current: {currentAdvocate ? `${currentAdvocate.name} | ${currentAdvocate.title}` : "Not assigned"}
+          </span>
           <select className="field-input" value={advocateId} onChange={(event) => setAdvocateId(event.target.value)}>
             <option value="">Select advocate</option>
             {advocateOptions.map((user) => (
@@ -79,11 +100,17 @@ export function AdminReassignPanel({
           <div className="sticky-buttons">
             <button
               className="secondary-button"
-              disabled={!advocateId || submitting !== ""}
+              disabled={!advocateId || submitting !== "" || advocateId === propertyCase.advocateId}
               onClick={async () => {
                 setSubmitting("advocate");
+                setMessage("");
+                setError("");
                 try {
                   await onReassignAdvocate({ caseId: propertyCase.id, userId: advocateId });
+                  const nextAdvocate = users.find((user) => user.id === advocateId);
+                  setMessage(`Advocate reassigned to ${nextAdvocate?.name ?? "selected advocate"}.`);
+                } catch {
+                  setError("Could not reassign advocate.");
                 } finally {
                   setSubmitting("");
                 }
@@ -95,6 +122,9 @@ export function AdminReassignPanel({
           </div>
         </label>
       </div>
+
+      {message ? <p className="field-success top-space">{message}</p> : null}
+      {error ? <p className="field-error top-space">{error}</p> : null}
     </section>
   );
 }

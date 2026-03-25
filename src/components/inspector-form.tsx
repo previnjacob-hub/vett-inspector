@@ -1,18 +1,20 @@
 "use client";
 
 import { useMemo, useState, type ChangeEvent } from "react";
+import { serializeAttachment } from "@/lib/case-attachments";
 import type { Sector } from "@/lib/mock-data";
 import {
   getInspectionSections,
   getInitialFormValues,
   type InspectionField,
 } from "@/lib/inspection-template";
+import { type VerifierSubmissionInput } from "@/components/app-state";
 
 type InspectorFormProps = {
   caseId: string;
   inspector: string;
   sector: Sector;
-  onSuccessfulSubmit?: () => Promise<void>;
+  onSuccessfulSubmit?: (input: VerifierSubmissionInput) => Promise<void>;
 };
 
 type FormValues = Record<string, string>;
@@ -21,6 +23,8 @@ type MediaEntry = {
   name: string;
   type: "Photo / Video" | "Document";
   capturedAt: string;
+  url?: string;
+  mimeType?: string;
 };
 type LocationState = {
   status: "Not captured" | "Capturing..." | "Captured" | "Failed";
@@ -39,6 +43,10 @@ const storagePrefix = "vett-inspector-form";
 
 function isBlank(value: string) {
   return value.trim().length === 0;
+}
+
+function cleanLabel(label: string) {
+  return label.replace(/\*/g, "").trim();
 }
 
 function getEmptyLocationState(): LocationState {
@@ -113,6 +121,89 @@ function getCompletionCount(
   }
 
   return { completed, total };
+}
+
+function inferItemStatus(value: string): "Done" | "Pending" | "Blocked" {
+  const normalized = value.trim().toLowerCase();
+
+  if (!normalized) {
+    return "Pending";
+  }
+
+  if (
+    normalized.includes("access denied") ||
+    normalized.includes("not found") ||
+    normalized.includes("cannot confirm") ||
+    normalized.includes("no access") ||
+    normalized.includes("blocked")
+  ) {
+    return "Blocked";
+  }
+
+  return "Done";
+}
+
+function inferSectionRisk(sectionValues: string[]) {
+  const joined = sectionValues.join(" ").toLowerCase();
+
+  if (
+    joined.includes("high") ||
+    joined.includes("major") ||
+    joined.includes("active leak") ||
+    joined.includes("encroachment") ||
+    joined.includes("government issue") ||
+    joined.includes("do not proceed")
+  ) {
+    return "High" as const;
+  }
+
+  if (
+    joined.includes("moderate") ||
+    joined.includes("partial") ||
+    joined.includes("weak") ||
+    joined.includes("slow") ||
+    joined.includes("pending")
+  ) {
+    return "Moderate" as const;
+  }
+
+  return "Low" as const;
+}
+
+async function uploadCaseFiles(
+  caseId: string,
+  files: File[],
+  kind: string,
+  entryType: "Photo / Video" | "Document",
+) {
+  const uploaded: MediaEntry[] = [];
+
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("caseId", caseId);
+    formData.append("kind", kind);
+
+    const response = await fetch("/api/case-files", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Upload failed");
+    }
+
+    const payload = (await response.json()) as { publicUrl: string; fileName: string };
+    uploaded.push({
+      name: payload.fileName,
+      type: entryType,
+      capturedAt: new Date().toLocaleString(),
+      url: payload.publicUrl,
+      mimeType: file.type,
+    });
+  }
+
+  return uploaded;
 }
 
 function FieldControl({
@@ -223,6 +314,7 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
   );
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [locationState, setLocationState] = useState<LocationState>(
     initialDraft?.locationState ?? getEmptyLocationState(),
   );
@@ -306,49 +398,155 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
     );
   }
 
-  function handleMediaSelection(
+  async function handleMediaSelection(
     event: ChangeEvent<HTMLInputElement>,
     kind: "Photo / Video" | "Document",
   ) {
     const files = Array.from(event.target.files ?? []);
-    const stampedFiles = files.map((file) => ({
-      name: file.name,
-      type: kind,
-      capturedAt: new Date().toLocaleString(),
-    }));
+    if (files.length === 0) {
+      return;
+    }
 
-    if (kind === "Photo / Video") {
-      setEvidenceFiles((current) => [...current, ...stampedFiles]);
-      setErrors((current) => {
-        const next = { ...current };
-        delete next.evidenceCapture;
-        return next;
-      });
-    } else {
-      setDocumentFiles((current) => [...current, ...stampedFiles]);
+    setUploading(true);
+
+    try {
+      const stampedFiles = await uploadCaseFiles(
+        caseId,
+        files,
+        kind === "Photo / Video" ? "inspection-media" : "inspection-document",
+        kind,
+      );
+
+      if (kind === "Photo / Video") {
+        setEvidenceFiles((current) => [...current, ...stampedFiles]);
+        setErrors((current) => {
+          const next = { ...current };
+          delete next.evidenceCapture;
+          return next;
+        });
+      } else {
+        setDocumentFiles((current) => [...current, ...stampedFiles]);
+      }
+    } finally {
+      setUploading(false);
     }
 
     event.target.value = "";
   }
 
-  function handleFieldAttachmentSelection(
+  async function handleFieldAttachmentSelection(
     event: ChangeEvent<HTMLInputElement>,
     fieldId: string,
     kind: "Photo / Video" | "Document",
   ) {
     const files = Array.from(event.target.files ?? []);
-    const stampedFiles = files.map((file) => ({
-      name: file.name,
-      type: kind,
-      capturedAt: new Date().toLocaleString(),
-    }));
+    if (files.length === 0) {
+      return;
+    }
 
-    setFieldAttachments((current) => ({
-      ...current,
-      [fieldId]: [...(current[fieldId] ?? []), ...stampedFiles],
-    }));
+    setUploading(true);
+
+    try {
+      const stampedFiles = await uploadCaseFiles(
+        caseId,
+        files,
+        kind === "Photo / Video" ? "inspection-media" : "inspection-document",
+        kind,
+      );
+
+      setFieldAttachments((current) => ({
+        ...current,
+        [fieldId]: [...(current[fieldId] ?? []), ...stampedFiles],
+      }));
+    } finally {
+      setUploading(false);
+    }
 
     event.target.value = "";
+  }
+
+  function buildSubmissionPayload(): VerifierSubmissionInput {
+    const sections = inspectionSections.map((section) => {
+      const items = section.fields.map((field) => ({
+        label: cleanLabel(field.label),
+        status: inferItemStatus(values[field.id] ?? ""),
+        note: values[field.id] ? values[field.id] : undefined,
+        attachments: (fieldAttachments[field.id] ?? [])
+          .filter((entry) => entry.url)
+          .map((entry) => ({
+            label: entry.name,
+            fileName: entry.name,
+            url: entry.url as string,
+            uploadedAt: entry.capturedAt,
+            mimeType: entry.mimeType,
+          })),
+      }));
+      const sectionValues = section.fields.map((field) => values[field.id] ?? "");
+
+      return {
+        id: section.id,
+        title: section.title,
+        risk: inferSectionRisk(sectionValues),
+        evidenceCount: items.reduce((count, item) => count + (item.attachments?.length ?? 0), 0),
+        items,
+      };
+    });
+
+    const structuralFlags = Object.entries(values)
+      .filter(([, value]) => {
+        const normalized = value.toLowerCase();
+        return (
+          normalized.includes("high") ||
+          normalized.includes("major") ||
+          normalized.includes("active leak") ||
+          normalized.includes("encroachment") ||
+          normalized.includes("do not proceed") ||
+          normalized.includes("hazard")
+        );
+      })
+      .slice(0, 6)
+      .map(([fieldId, value]) => {
+        const field = inspectionSections.flatMap((section) => section.fields).find((entry) => entry.id === fieldId);
+        return `${cleanLabel(field?.label ?? fieldId)}: ${value}`;
+      });
+
+    const verifierSummary =
+      sector === "land-verification"
+        ? `Land visit completed by ${inspector}. Boundary, access, terrain, and submitted site documents were recorded for office and legal review.`
+        : `Property visit completed by ${inspector}. Structural condition, utilities, livability findings, and submitted site documents were recorded for office and legal review.`;
+
+    const reportDocuments = [
+      ...evidenceFiles.filter((entry) => entry.url).map((entry) =>
+        serializeAttachment({
+          kind: "inspection-media",
+          label: entry.name,
+          fileName: entry.name,
+          url: entry.url as string,
+          source: "verifier",
+          uploadedAt: entry.capturedAt,
+          mimeType: entry.mimeType,
+        }),
+      ),
+      ...documentFiles.filter((entry) => entry.url).map((entry) =>
+        serializeAttachment({
+          kind: "inspection-document",
+          label: entry.name,
+          fileName: entry.name,
+          url: entry.url as string,
+          source: "verifier",
+          uploadedAt: entry.capturedAt,
+          mimeType: entry.mimeType,
+        }),
+      ),
+    ];
+
+    return {
+      caseId,
+      verifierSummary,
+      structuralFlags,
+      sections,
+      reportDocuments,
+    };
   }
 
   async function handleSubmit() {
@@ -381,7 +579,8 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
     setSubmitting(true);
 
     try {
-      await onSuccessfulSubmit?.();
+      const payload = buildSubmissionPayload();
+      await onSuccessfulSubmit?.(payload);
       setSubmitted(true);
     } finally {
       setSubmitting(false);
@@ -492,7 +691,7 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
               </div>
               <p>
                 This keeps the workflow testable right now. We stamp the selected evidence locally,
-                then move to real shared uploads in the backend step.
+                and upload them to the shared case so office can use them in reports.
               </p>
               <div className="upload-list">
                 {evidenceFiles.length === 0 ? (
@@ -603,7 +802,11 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
       <div className="sticky-actions">
         <div className="sticky-copy">
           <strong>{draftState}</strong>
-          <span>Submit stays blocked until mandatory fields, location, and evidence are added.</span>
+          <span>
+            {uploading
+              ? "Uploading evidence to the case..."
+              : "Submit stays blocked until mandatory fields, location, and evidence are added."}
+          </span>
         </div>
         <div className="sticky-buttons">
           <button

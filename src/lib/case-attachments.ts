@@ -1,4 +1,6 @@
 export type CaseAttachmentKind =
+  | "inspection-media"
+  | "inspection-document"
   | "title-deed"
   | "tax-receipt"
   | "approval-proof"
@@ -6,7 +8,7 @@ export type CaseAttachmentKind =
   | "advocate-report"
   | "final-report";
 
-export type CaseAttachmentSource = "office" | "advocate" | "final-desk";
+export type CaseAttachmentSource = "verifier" | "office" | "advocate" | "final-desk";
 
 export type CaseAttachment = {
   kind: CaseAttachmentKind;
@@ -15,6 +17,7 @@ export type CaseAttachment = {
   url: string;
   source: CaseAttachmentSource;
   uploadedAt: string;
+  mimeType?: string;
 };
 
 export function serializeAttachment(attachment: CaseAttachment) {

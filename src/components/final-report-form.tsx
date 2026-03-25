@@ -5,6 +5,7 @@ import { type FinalReportInput } from "@/components/app-state";
 import { CaseFileUpload } from "@/components/case-file-upload";
 import { parseAttachments, serializeAttachment } from "@/lib/case-attachments";
 import { type PropertyCase } from "@/lib/mock-data";
+import { openCombinedReport } from "@/lib/report-exports";
 
 export function FinalReportForm({
   propertyCase,
@@ -122,6 +123,13 @@ export function FinalReportForm({
       {error ? <div className="field-error">{error}</div> : null}
 
       <div className="sticky-buttons">
+        <button
+          className="secondary-button"
+          onClick={() => openCombinedReport(propertyCase, attachments, suggestions)}
+          type="button"
+        >
+          Open combined report draft
+        </button>
         <button className="primary-button" disabled={submitting} onClick={() => void handleSave()} type="button">
           {submitting ? "Saving..." : "Mark final report ready"}
         </button>

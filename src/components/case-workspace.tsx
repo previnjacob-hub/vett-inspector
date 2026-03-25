@@ -7,9 +7,10 @@ import { AdvocateHandoffForm } from "@/components/advocate-handoff-form";
 import { AdvocateReviewForm } from "@/components/advocate-review-form";
 import { FinalReportForm } from "@/components/final-report-form";
 import { InspectorForm } from "@/components/inspector-form";
-import { useAppState } from "@/components/app-state";
+import { useAppState, type VerifierSubmissionInput } from "@/components/app-state";
 import { parseAttachments } from "@/lib/case-attachments";
 import { getRiskClass, getStageClass, sectorLabels, type PropertyCase } from "@/lib/mock-data";
+import { openInspectionReport } from "@/lib/report-exports";
 
 function getRoleViewTitle(role: string) {
   if (role === "office" || role === "admin") {
@@ -54,6 +55,15 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
     users,
   } = useAppState();
   const attachments = parseAttachments(propertyCase.advocateDocuments);
+  const verifierMedia = attachments.filter((attachment) => attachment.kind === "inspection-media");
+  const verifierDocuments = attachments.filter((attachment) => attachment.kind === "inspection-document");
+  const packetDocuments = attachments.filter((attachment) =>
+    ["title-deed", "tax-receipt", "approval-proof", "additional-doc"].includes(attachment.kind),
+  );
+  const legalReports = attachments.filter((attachment) => attachment.kind === "advocate-report");
+  const finalReports = attachments.filter((attachment) => attachment.kind === "final-report");
+  const verifierName = users.find((user) => user.id === propertyCase.verifierId)?.name ?? "Not assigned";
+  const advocateName = users.find((user) => user.id === propertyCase.advocateId)?.name ?? "Not assigned";
 
   if (!currentUser) {
     return (
@@ -157,6 +167,14 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
             <span className="label">Pending client documents</span>
             <strong>{propertyCase.pendingClientDocumentsNote || "None noted"}</strong>
           </div>
+          <div>
+            <span className="label">Assigned verifier</span>
+            <strong>{verifierName}</strong>
+          </div>
+          <div>
+            <span className="label">Assigned advocate</span>
+            <strong>{advocateName}</strong>
+          </div>
         </div>
 
         <div className="task-stack top-space">
@@ -175,6 +193,119 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
           users={users}
         />
       ) : null}
+
+      {(currentUser.role === "admin" || currentUser.role === "office") && (
+        <section className="surface">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Reports</span>
+              <h2>Exact case outputs and downloadable reports</h2>
+            </div>
+          </div>
+
+          <div className="task-stack">
+            <article className="task-card">
+              <div className="check-item-row">
+                <strong>Physical verification report</strong>
+                <button
+                  className="inline-link reports-link-button"
+                  onClick={() => openInspectionReport(propertyCase, attachments)}
+                  type="button"
+                >
+                  Open / Print PDF
+                </button>
+              </div>
+              <p>
+                Opens the structured physical verification report for this case. Use the print action to save or share it as a PDF.
+              </p>
+            </article>
+
+            <article className="task-card">
+              <strong>Verifier media and collected files</strong>
+              <div className="document-stack top-space">
+                {[...verifierMedia, ...verifierDocuments].length > 0 ? (
+                  [...verifierMedia, ...verifierDocuments].map((attachment) => (
+                    <a
+                      key={`${attachment.kind}-${attachment.url}`}
+                      className="document-pill document-link"
+                      href={attachment.url}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {attachment.label}
+                    </a>
+                  ))
+                ) : (
+                  <span className="small-note">Verifier files will appear here after field submission.</span>
+                )}
+              </div>
+            </article>
+
+            <article className="task-card">
+              <strong>Legal packet shared with advocate</strong>
+              <div className="document-stack top-space">
+                {packetDocuments.length > 0 ? (
+                  packetDocuments.map((attachment) => (
+                    <a
+                      key={`${attachment.kind}-${attachment.url}`}
+                      className="document-pill document-link"
+                      href={attachment.url}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {attachment.label}
+                    </a>
+                  ))
+                ) : (
+                  <span className="small-note">No legal packet files uploaded yet.</span>
+                )}
+              </div>
+            </article>
+
+            <article className="task-card">
+              <strong>Advocate report</strong>
+              <div className="document-stack top-space">
+                {legalReports.length > 0 ? (
+                  legalReports.map((attachment) => (
+                    <a
+                      key={`${attachment.kind}-${attachment.url}`}
+                      className="document-pill document-link"
+                      href={attachment.url}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {attachment.label}
+                    </a>
+                  ))
+                ) : (
+                  <span className="small-note">Advocate report pending.</span>
+                )}
+              </div>
+            </article>
+
+            <article className="task-card">
+              <strong>Final customer report</strong>
+              <div className="document-stack top-space">
+                {finalReports.length > 0 ? (
+                  finalReports.map((attachment) => (
+                    <a
+                      key={`${attachment.kind}-${attachment.url}`}
+                      className="document-pill document-link"
+                      href={attachment.url}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {attachment.label}
+                    </a>
+                  ))
+                ) : (
+                  <span className="small-note">Final combined report not uploaded yet.</span>
+                )}
+              </div>
+            </article>
+          </div>
+        </section>
+      )}
 
       {(currentUser.role === "office" || currentUser.role === "admin" || currentUser.role === "verifier") && (
         <section className="surface">
@@ -204,6 +335,21 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
                           <span className={getStageClass(item.status)}>{item.status}</span>
                         </div>
                         {item.note ? <p>{item.note}</p> : null}
+                        {item.attachments && item.attachments.length > 0 ? (
+                          <div className="document-stack top-space">
+                            {item.attachments.map((attachment) => (
+                              <a
+                                key={`${attachment.url}-${attachment.fileName}`}
+                                className="document-pill document-link"
+                                href={attachment.url}
+                                rel="noreferrer"
+                                target="_blank"
+                              >
+                                {attachment.label}
+                              </a>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -236,7 +382,7 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
           caseId={propertyCase.id}
           inspector={currentUser.name}
           sector={propertyCase.sector}
-          onSuccessfulSubmit={() => submitVerifierCase(propertyCase.id)}
+          onSuccessfulSubmit={(input: VerifierSubmissionInput) => submitVerifierCase(input)}
         />
       ) : null}
 

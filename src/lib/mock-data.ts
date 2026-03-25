@@ -20,6 +20,13 @@ export type SectionItem = {
   label: string;
   status: "Done" | "Pending" | "Blocked";
   note?: string;
+  attachments?: {
+    label: string;
+    fileName: string;
+    url: string;
+    uploadedAt: string;
+    mimeType?: string;
+  }[];
 };
 
 export type InspectionSection = {

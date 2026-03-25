@@ -42,6 +42,14 @@ export type AdvocateHandoffInput = {
   pendingDocumentsNote: string;
 };
 
+export type VerifierSubmissionInput = {
+  caseId: string;
+  verifierSummary: string;
+  structuralFlags: string[];
+  sections: PropertyCase["sections"];
+  reportDocuments: string[];
+};
+
 export type AdvocateCompletionInput = {
   caseId: string;
   legalSummary: string;
@@ -74,7 +82,7 @@ type AppStateValue = {
   logout: () => void;
   createCase: (input: CreateCaseInput) => Promise<string>;
   assignToAdvocate: (input: AdvocateHandoffInput) => Promise<void>;
-  submitVerifierCase: (caseId: string) => Promise<void>;
+  submitVerifierCase: (input: VerifierSubmissionInput) => Promise<void>;
   startAdvocateReview: (caseId: string) => Promise<void>;
   completeAdvocateReview: (input: AdvocateCompletionInput) => Promise<void>;
   saveFinalReport: (input: FinalReportInput) => Promise<void>;
@@ -554,8 +562,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
-      submitVerifierCase: async (caseId: string) => {
-        const targetCase = allCases.find((propertyCase) => propertyCase.id === caseId);
+      submitVerifierCase: async (input: VerifierSubmissionInput) => {
+        const targetCase = allCases.find((propertyCase) => propertyCase.id === input.caseId);
 
         if (!targetCase) {
           return;
@@ -567,21 +575,30 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           "Verifier",
           "Field report finished and returned to office for advocate assignment.",
         );
+        const nextDocuments = [...targetCase.advocateDocuments, ...input.reportDocuments];
 
-        await persistCaseUpdate(caseId, {
+        await persistCaseUpdate(input.caseId, {
           stage: "Verifier Submitted",
           verifier_submitted: true,
+          verifier_summary: input.verifierSummary,
+          structural_flags: input.structuralFlags,
+          sections: input.sections,
+          advocate_documents: nextDocuments,
           timeline: nextTimeline,
         });
 
         setAllCases((current) =>
           current.map((propertyCase) =>
-            propertyCase.id !== caseId
+            propertyCase.id !== input.caseId
               ? propertyCase
               : {
                   ...propertyCase,
                   stage: "Verifier Submitted",
                   verifierSubmitted: true,
+                  verifierSummary: input.verifierSummary,
+                  structuralFlags: input.structuralFlags,
+                  sections: input.sections,
+                  advocateDocuments: nextDocuments,
                   timeline: nextTimeline,
                 },
           ),
