@@ -51,7 +51,7 @@ export function FinalReportForm({
   return (
     <div className="task-stack top-space">
       <div className="task-card">
-        <strong>Inputs available for the final report</strong>
+        <strong>Report inputs</strong>
         <p>{propertyCase.verifierSummary}</p>
         <p>{propertyCase.legalSummary}</p>
         <div className="document-stack top-space">
@@ -82,8 +82,8 @@ export function FinalReportForm({
         <span className="field-label">Customer summary*</span>
         <textarea
           className="field-input"
-          placeholder="Write the combined plain-language customer summary using structural and legal findings."
-          rows={5}
+          placeholder="Client summary"
+          rows={4}
           value={customerSummary}
           onChange={(event) => setCustomerSummary(event.target.value)}
         />
@@ -93,8 +93,8 @@ export function FinalReportForm({
         <span className="field-label">Suggestions</span>
         <textarea
           className="field-input"
-          placeholder="Add neutral suggestions or follow-up questions for the client."
-          rows={4}
+          placeholder="Suggestions"
+          rows={3}
           value={suggestions}
           onChange={(event) => setSuggestions(event.target.value)}
         />

@@ -93,7 +93,7 @@ export function OfficeIntakeForm({
       <div className="section-heading">
         <div>
           <span className="eyebrow">New Intake</span>
-          <h2>Create a verification case</h2>
+          <h2>Create case</h2>
         </div>
       </div>
 
@@ -106,7 +106,7 @@ export function OfficeIntakeForm({
             </span>
             <input
               className="field-input"
-              placeholder="Broker, website, repeat client, partner"
+              placeholder="Broker / website / partner"
               value={form.enquirySource}
               onChange={(event) => update("enquirySource", event.target.value)}
             />
@@ -119,7 +119,7 @@ export function OfficeIntakeForm({
             </span>
             <input
               className="field-input"
-              placeholder="Client full name"
+              placeholder="Client name"
               value={form.clientName}
               onChange={(event) => update("clientName", event.target.value)}
             />
@@ -162,7 +162,7 @@ export function OfficeIntakeForm({
             </span>
             <input
               className="field-input"
-              placeholder="Flat name, plot number, vehicle name"
+              placeholder="Flat / plot / asset"
               value={form.assetName}
               onChange={(event) => update("assetName", event.target.value)}
             />
@@ -195,7 +195,7 @@ export function OfficeIntakeForm({
           </span>
           <textarea
             className="field-input"
-            placeholder="Full address or location details"
+            placeholder="Address / location"
             rows={3}
             value={form.address}
             onChange={(event) => update("address", event.target.value)}
@@ -224,7 +224,7 @@ export function OfficeIntakeForm({
             <span className="field-label">Pending document note</span>
             <input
               className="field-input"
-              placeholder="Example: Original sale deed pending from seller"
+              placeholder="Pending doc note"
               value={form.pendingClientDocumentsNote}
               onChange={(event) => update("pendingClientDocumentsNote", event.target.value)}
             />
@@ -235,7 +235,7 @@ export function OfficeIntakeForm({
           <span className="field-label">Office notes</span>
           <textarea
             className="field-input"
-            placeholder="Internal notes for office team, verifier, or final report desk"
+            placeholder="Office notes"
             rows={3}
             value={form.officeNotes}
             onChange={(event) => update("officeNotes", event.target.value)}

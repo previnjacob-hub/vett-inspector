@@ -11,10 +11,7 @@ export function ReportsCenter({ cases }: { cases: PropertyCase[] }) {
       <div className="section-heading">
         <div>
           <span className="eyebrow">Reports Center</span>
-          <h2>Inspection, legal, and final outputs together</h2>
-          <p className="section-copy">
-            Use this desk to review each case in one table, export the inspection summary, open the legal report, and download the final customer report.
-          </p>
+          <h2>Reports</h2>
         </div>
       </div>
 
@@ -82,6 +79,81 @@ export function ReportsCenter({ cases }: { cases: PropertyCase[] }) {
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="reports-mobile-list">
+        {cases.map((propertyCase) => {
+          const attachments = parseAttachments(propertyCase.advocateDocuments);
+          const legalReports = attachments.filter((item) => item.kind === "advocate-report");
+          const finalReports = attachments.filter((item) => item.kind === "final-report");
+
+          return (
+            <article key={propertyCase.id} className="task-card reports-mobile-card">
+              <div className="check-item-row">
+                <div>
+                  <strong>{propertyCase.caseRef}</strong>
+                  <p>{propertyCase.assetName}</p>
+                </div>
+                <span className="status-pill">{propertyCase.stage}</span>
+              </div>
+
+              <div className="detail-grid top-space">
+                <div>
+                  <span className="label">Type</span>
+                  <strong>{sectorLabels[propertyCase.sector]}</strong>
+                </div>
+                <div>
+                  <span className="label">Inspection</span>
+                  <button
+                    className="inline-link reports-link-button"
+                    onClick={() => openInspectionReport(propertyCase, attachments)}
+                    type="button"
+                  >
+                    Open PDF
+                  </button>
+                </div>
+              </div>
+
+              <div className="task-stack top-space">
+                <div>
+                  <span className="label">Legal</span>
+                  <div className="document-stack top-space">
+                    {legalReports.length > 0 ? (
+                      legalReports.map((report) => (
+                        <a key={report.url} className="document-pill document-link" href={report.url} rel="noreferrer" target="_blank">
+                          {report.label}
+                        </a>
+                      ))
+                    ) : (
+                      <span className="small-note">Pending</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="label">Final</span>
+                  <div className="document-stack top-space">
+                    {finalReports.length > 0 ? (
+                      finalReports.map((report) => (
+                        <a key={report.url} className="document-pill document-link" href={report.url} rel="noreferrer" target="_blank">
+                          {report.label}
+                        </a>
+                      ))
+                    ) : (
+                      <span className="small-note">Not ready</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="sticky-buttons top-space">
+                <Link className="inline-link" href={`/case/${propertyCase.id}`}>
+                  Open case
+                </Link>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
