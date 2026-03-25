@@ -492,7 +492,14 @@ export function openCombinedReport(
               max-width: none;
             }
             .hero {
+              background: #ffffff;
+              color: #132238;
+              border: 1px solid #d7e1ee;
               break-inside: avoid;
+            }
+            .eyebrow {
+              color: #325784;
+              opacity: 1;
             }
           }
         </style>

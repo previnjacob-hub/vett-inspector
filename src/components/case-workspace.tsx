@@ -32,7 +32,9 @@ function canOpenCase(userId: string, role: string, propertyCase: PropertyCase) {
   if (role === "verifier") {
     return (
       propertyCase.verifierId === userId &&
-      (propertyCase.stage === "Assigned to Verifier" || propertyCase.stage === "Verifier In Progress")
+      (propertyCase.stage === "Assigned to Verifier" ||
+        propertyCase.stage === "Verifier In Progress" ||
+        propertyCase.stage === "Verifier Submitted")
     );
   }
 

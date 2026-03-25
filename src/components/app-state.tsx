@@ -154,6 +154,10 @@ function appendTimeline(propertyCase: PropertyCase, title: string, owner: string
   ];
 }
 
+function mergeAttachmentEntries(existing: string[], next: string[]) {
+  return Array.from(new Set([...existing, ...next]));
+}
+
 async function persistCaseUpdate(caseId: string, updates: Record<string, unknown>) {
   if (!supabase) {
     return;
@@ -536,11 +540,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           input.pendingDocumentsNote.trim().length > 0
             ? `Legal packet shared. Pending from client: ${input.pendingDocumentsNote}`
             : "Legal packet shared with advocate from office desk.";
+        const mergedDocuments = mergeAttachmentEntries(targetCase.advocateDocuments, input.sharedDocuments);
 
         await persistCaseUpdate(input.caseId, {
           advocate_id: input.advocateId,
           stage: "Assigned to Advocate",
-          advocate_documents: input.sharedDocuments,
+          advocate_documents: mergedDocuments,
           pending_client_documents_note: input.pendingDocumentsNote,
           legal_summary: nextLegalSummary,
           timeline: nextTimeline,
@@ -554,7 +559,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
                   ...propertyCase,
                   advocateId: input.advocateId,
                   stage: "Assigned to Advocate",
-                  advocateDocuments: input.sharedDocuments,
+                  advocateDocuments: mergedDocuments,
                   pendingClientDocumentsNote: input.pendingDocumentsNote,
                   legalSummary: nextLegalSummary,
                   timeline: nextTimeline,

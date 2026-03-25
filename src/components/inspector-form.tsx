@@ -466,6 +466,13 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
   }
 
   function buildSubmissionPayload(): VerifierSubmissionInput {
+    const specialDocumentKinds: Record<string, "title-deed" | "tax-receipt" | "approval-proof"> = {
+      saleDeedShared: "title-deed",
+      titleDeedReceived: "title-deed",
+      taxReceiptShared: "tax-receipt",
+      taxReceiptReceived: "tax-receipt",
+      approvalDocShared: "approval-proof",
+    };
     const sections = inspectionSections.map((section) => {
       const items = section.fields.map((field) => ({
         label: cleanLabel(field.label),
@@ -537,6 +544,21 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
           uploadedAt: entry.capturedAt,
           mimeType: entry.mimeType,
         }),
+      ),
+      ...Object.entries(fieldAttachments).flatMap(([fieldId, entries]) =>
+        entries
+          .filter((entry) => entry.url)
+          .map((entry) =>
+            serializeAttachment({
+              kind: specialDocumentKinds[fieldId] ?? (entry.type === "Document" ? "inspection-document" : "inspection-media"),
+              label: entry.name,
+              fileName: entry.name,
+              url: entry.url as string,
+              source: "verifier",
+              uploadedAt: entry.capturedAt,
+              mimeType: entry.mimeType,
+            }),
+          ),
       ),
     ];
 

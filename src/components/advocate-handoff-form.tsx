@@ -17,6 +17,10 @@ export function AdvocateHandoffForm({
   users,
   onAssign,
 }: AdvocateHandoffFormProps) {
+  const existingAttachments = useMemo(
+    () => parseAttachments(propertyCase.advocateDocuments),
+    [propertyCase.advocateDocuments],
+  );
   const advocateOptions = useMemo(
     () =>
       users.filter(
@@ -24,9 +28,15 @@ export function AdvocateHandoffForm({
       ),
     [propertyCase.sector, users],
   );
-
   const [advocateId, setAdvocateId] = useState(propertyCase.advocateId ?? "");
-  const existingAttachments = parseAttachments(propertyCase.advocateDocuments);
+  const verifierCollectedDocs = existingAttachments.filter(
+    (item) =>
+      item.source === "verifier" &&
+      (item.kind === "title-deed" ||
+        item.kind === "tax-receipt" ||
+        item.kind === "approval-proof" ||
+        item.kind === "inspection-document"),
+  );
   const [titleDeed, setTitleDeed] = useState(existingAttachments.find((item) => item.kind === "title-deed")?.url ?? "");
   const [taxReceipt, setTaxReceipt] = useState(existingAttachments.find((item) => item.kind === "tax-receipt")?.url ?? "");
   const [approvalProof, setApprovalProof] = useState(existingAttachments.find((item) => item.kind === "approval-proof")?.url ?? "");
@@ -91,6 +101,16 @@ export function AdvocateHandoffForm({
             uploadedAt: new Date().toLocaleString(),
           })
         : "",
+      ...existingAttachments
+        .filter(
+          (item) =>
+            item.kind === "inspection-media" ||
+            item.kind === "inspection-document" ||
+            item.kind === "title-deed" ||
+            item.kind === "tax-receipt" ||
+            item.kind === "approval-proof",
+        )
+        .map(serializeAttachment),
       ...docs.map((url) =>
         serializeAttachment({
           kind: "additional-doc",
@@ -154,6 +174,31 @@ export function AdvocateHandoffForm({
       </div>
 
       <div className="field-stack">
+        <div className="task-card">
+          <strong>Documents collected by verifier</strong>
+          <p>
+            These are the legal files and site documents already collected during the field visit.
+            Office only needs to follow up for anything still missing before passing to the advocate.
+          </p>
+          <div className="document-stack top-space">
+            {verifierCollectedDocs.length > 0 ? (
+              verifierCollectedDocs.map((attachment) => (
+                <a
+                  key={`${attachment.kind}-${attachment.url}`}
+                  className="document-pill document-link"
+                  href={attachment.url}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {attachment.label}
+                </a>
+              ))
+            ) : (
+              <span className="small-note">No verifier-collected legal documents are on the case yet.</span>
+            )}
+          </div>
+        </div>
+
         <CaseFileUpload
           accept=".pdf,image/*"
           caseId={propertyCase.id}
