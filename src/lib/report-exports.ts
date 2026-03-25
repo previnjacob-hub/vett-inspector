@@ -41,6 +41,21 @@ function attachmentList(title: string, attachments: CaseAttachment[]) {
   `;
 }
 
+function openReportWindow(html: string) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const reportWindow = window.open(url, "_blank");
+
+  if (!reportWindow) {
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 60000);
+}
+
 function imageGallery(title: string, attachments: CaseAttachment[]) {
   if (attachments.length === 0) {
     return `
@@ -79,12 +94,6 @@ export function openInspectionReport(propertyCase: PropertyCase, attachments: Ca
   );
   const legalReports = attachments.filter((item) => item.kind === "advocate-report");
   const finalReports = attachments.filter((item) => item.kind === "final-report");
-
-  const reportWindow = window.open("", "_blank", "noopener,noreferrer,width=1024,height=900");
-
-  if (!reportWindow) {
-    return;
-  }
 
   const html = `
     <!doctype html>
@@ -296,10 +305,7 @@ export function openInspectionReport(propertyCase: PropertyCase, attachments: Ca
       </body>
     </html>
   `;
-
-  reportWindow.document.open();
-  reportWindow.document.write(html);
-  reportWindow.document.close();
+  openReportWindow(html);
 }
 
 export function openCombinedReport(
@@ -315,12 +321,6 @@ export function openCombinedReport(
   );
   const legalReports = attachments.filter((item) => item.kind === "advocate-report");
   const finalReports = attachments.filter((item) => item.kind === "final-report");
-
-  const reportWindow = window.open("", "_blank", "noopener,noreferrer,width=1080,height=920");
-
-  if (!reportWindow) {
-    return;
-  }
 
   const html = `
     <!doctype html>
@@ -605,8 +605,5 @@ export function openCombinedReport(
       </body>
     </html>
   `;
-
-  reportWindow.document.open();
-  reportWindow.document.write(html);
-  reportWindow.document.close();
+  openReportWindow(html);
 }
