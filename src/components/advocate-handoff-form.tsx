@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CaseFileUpload } from "@/components/case-file-upload";
+import { parseAttachments, serializeAttachment } from "@/lib/case-attachments";
 import { type AdvocateHandoffInput } from "@/components/app-state";
 import { type AppUser, type PropertyCase } from "@/lib/mock-data";
 
@@ -24,8 +26,15 @@ export function AdvocateHandoffForm({
   );
 
   const [advocateId, setAdvocateId] = useState(propertyCase.advocateId ?? "");
-  const [sharedDocuments, setSharedDocuments] = useState(
-    propertyCase.advocateDocuments.join("\n"),
+  const existingAttachments = parseAttachments(propertyCase.advocateDocuments);
+  const [titleDeed, setTitleDeed] = useState(existingAttachments.find((item) => item.kind === "title-deed")?.url ?? "");
+  const [taxReceipt, setTaxReceipt] = useState(existingAttachments.find((item) => item.kind === "tax-receipt")?.url ?? "");
+  const [approvalProof, setApprovalProof] = useState(existingAttachments.find((item) => item.kind === "approval-proof")?.url ?? "");
+  const [otherDocuments, setOtherDocuments] = useState(
+    existingAttachments
+      .filter((item) => item.kind === "additional-doc")
+      .map((item) => item.url)
+      .join("\n"),
   );
   const [pendingDocumentsNote, setPendingDocumentsNote] = useState(
     propertyCase.pendingClientDocumentsNote,
@@ -41,10 +50,58 @@ export function AdvocateHandoffForm({
       return;
     }
 
-    const docs = sharedDocuments
+    if (!titleDeed || !taxReceipt || !approvalProof) {
+      setError("Upload the three core legal documents before passing the case.");
+      return;
+    }
+
+    const docs = otherDocuments
       .split("\n")
       .map((entry) => entry.trim())
       .filter(Boolean);
+
+    const sharedDocuments = [
+      titleDeed
+        ? serializeAttachment({
+            kind: "title-deed",
+            label: "Title deed / sale deed",
+            fileName: "Uploaded file",
+            url: titleDeed,
+            source: "office",
+            uploadedAt: new Date().toLocaleString(),
+          })
+        : "",
+      taxReceipt
+        ? serializeAttachment({
+            kind: "tax-receipt",
+            label: "Tax receipt",
+            fileName: "Uploaded file",
+            url: taxReceipt,
+            source: "office",
+            uploadedAt: new Date().toLocaleString(),
+          })
+        : "",
+      approvalProof
+        ? serializeAttachment({
+            kind: "approval-proof",
+            label: "Approval / occupancy proof",
+            fileName: "Uploaded file",
+            url: approvalProof,
+            source: "office",
+            uploadedAt: new Date().toLocaleString(),
+          })
+        : "",
+      ...docs.map((url) =>
+        serializeAttachment({
+          kind: "additional-doc",
+          label: "Additional legal document",
+          fileName: "Uploaded file",
+          url,
+          source: "office",
+          uploadedAt: new Date().toLocaleString(),
+        }),
+      ),
+    ].filter(Boolean);
 
     setSubmitting(true);
 
@@ -52,7 +109,7 @@ export function AdvocateHandoffForm({
       await onAssign({
         caseId: propertyCase.id,
         advocateId,
-        sharedDocuments: docs,
+        sharedDocuments,
         pendingDocumentsNote,
       });
       setError("");
@@ -86,24 +143,72 @@ export function AdvocateHandoffForm({
         </label>
 
         <label className="field">
-          <span className="field-label">Pending from client</span>
+              <span className="field-label">Pending from client</span>
           <input
             className="field-input"
-            placeholder="Example: original tax receipt still awaited"
+            placeholder="Example: verifier marked original tax receipt as pending from owner"
             value={pendingDocumentsNote}
             onChange={(event) => setPendingDocumentsNote(event.target.value)}
           />
         </label>
       </div>
 
+      <div className="field-stack">
+        <CaseFileUpload
+          accept=".pdf,image/*"
+          caseId={propertyCase.id}
+          kind="title-deed"
+          label="Title deed / sale deed"
+          onUploaded={({ publicUrl }) => {
+            setTitleDeed(publicUrl);
+            setError("");
+          }}
+        />
+        <CaseFileUpload
+          accept=".pdf,image/*"
+          caseId={propertyCase.id}
+          kind="tax-receipt"
+          label="Tax receipt"
+          onUploaded={({ publicUrl }) => {
+            setTaxReceipt(publicUrl);
+            setError("");
+          }}
+        />
+        <CaseFileUpload
+          accept=".pdf,image/*"
+          caseId={propertyCase.id}
+          kind="approval-proof"
+          label="Approval / occupancy proof"
+          onUploaded={({ publicUrl }) => {
+            setApprovalProof(publicUrl);
+            setError("");
+          }}
+        />
+      </div>
+
+      <div className="field-stack grid-two">
+        <label className="field">
+          <span className="field-label">Title deed / sale deed URL*</span>
+          <input className="field-input" placeholder="Paste uploaded file URL" value={titleDeed} onChange={(event) => setTitleDeed(event.target.value)} />
+        </label>
+        <label className="field">
+          <span className="field-label">Tax receipt URL*</span>
+          <input className="field-input" placeholder="Paste uploaded file URL" value={taxReceipt} onChange={(event) => setTaxReceipt(event.target.value)} />
+        </label>
+        <label className="field">
+          <span className="field-label">Approval / occupancy URL*</span>
+          <input className="field-input" placeholder="Paste uploaded file URL" value={approvalProof} onChange={(event) => setApprovalProof(event.target.value)} />
+        </label>
+      </div>
+
       <label className="field">
-        <span className="field-label">Documents to pass now</span>
+        <span className="field-label">Other documents</span>
         <textarea
           className="field-input"
-          placeholder="One document per line"
+          placeholder="One uploaded file URL per line"
           rows={4}
-          value={sharedDocuments}
-          onChange={(event) => setSharedDocuments(event.target.value)}
+          value={otherDocuments}
+          onChange={(event) => setOtherDocuments(event.target.value)}
         />
       </label>
 

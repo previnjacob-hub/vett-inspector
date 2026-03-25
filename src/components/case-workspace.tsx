@@ -3,8 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { AdvocateHandoffForm } from "@/components/advocate-handoff-form";
+import { AdvocateReviewForm } from "@/components/advocate-review-form";
+import { FinalReportForm } from "@/components/final-report-form";
 import { InspectorForm } from "@/components/inspector-form";
 import { useAppState } from "@/components/app-state";
+import { parseAttachments } from "@/lib/case-attachments";
 import { getRiskClass, getStageClass, sectorLabels, type PropertyCase } from "@/lib/mock-data";
 
 function getRoleViewTitle(role: string) {
@@ -42,10 +45,12 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
     assignToAdvocate,
     completeAdvocateReview,
     currentUser,
+    saveFinalReport,
     startAdvocateReview,
     submitVerifierCase,
     users,
   } = useAppState();
+  const attachments = parseAttachments(propertyCase.advocateDocuments);
 
   if (!currentUser) {
     return (
@@ -235,11 +240,21 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
           <p>{propertyCase.legalSummary}</p>
 
           <div className="document-stack">
-            {propertyCase.advocateDocuments.map((document) => (
-              <div key={document} className="document-pill">
-                {document}
-              </div>
-            ))}
+            {attachments.length === 0 ? (
+              <span className="small-note">No legal packet files uploaded yet.</span>
+            ) : (
+              attachments.map((attachment) => (
+                <a
+                  key={`${attachment.kind}-${attachment.url}`}
+                  className="document-pill document-link"
+                  href={attachment.url}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {attachment.label}
+                </a>
+              ))
+            )}
           </div>
 
           <div className="task-stack">
@@ -276,14 +291,14 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
                   Mark In Progress
                 </button>
               ) : null}
-              <button
-                className="primary-button"
-                onClick={() => completeAdvocateReview(propertyCase.id)}
-                type="button"
-              >
-                Upload report and complete
-              </button>
             </div>
+          ) : null}
+
+          {currentUser.role === "advocate" ? (
+            <AdvocateReviewForm
+              onComplete={completeAdvocateReview}
+              propertyCase={propertyCase}
+            />
           ) : null}
         </section>
       )}
@@ -307,6 +322,8 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
               </article>
             ))}
           </div>
+
+          <FinalReportForm onSave={saveFinalReport} propertyCase={propertyCase} />
 
           <div className="bullet-panel top-space">
             <p>Office team generates the branded combined report after verifier and advocate reports are available.</p>

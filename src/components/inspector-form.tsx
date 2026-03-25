@@ -32,6 +32,7 @@ type DraftPayload = {
   locationState: LocationState;
   evidenceFiles: MediaEntry[];
   documentFiles: MediaEntry[];
+  fieldAttachments: Record<string, MediaEntry[]>;
 };
 
 const storagePrefix = "vett-inspector-form";
@@ -231,6 +232,9 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
   const [documentFiles, setDocumentFiles] = useState<MediaEntry[]>(
     initialDraft?.documentFiles ?? [],
   );
+  const [fieldAttachments, setFieldAttachments] = useState<Record<string, MediaEntry[]>>(
+    initialDraft?.fieldAttachments ?? {},
+  );
 
   const completion = useMemo(() => getCompletionCount(values, inspectionSections), [inspectionSections, values]);
   const activeConfig = inspectionSections[activeSection];
@@ -253,6 +257,7 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
       locationState,
       evidenceFiles,
       documentFiles,
+      fieldAttachments,
     };
 
     window.localStorage.setItem(`${storagePrefix}-${caseId}`, JSON.stringify(payload));
@@ -322,6 +327,26 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
     } else {
       setDocumentFiles((current) => [...current, ...stampedFiles]);
     }
+
+    event.target.value = "";
+  }
+
+  function handleFieldAttachmentSelection(
+    event: ChangeEvent<HTMLInputElement>,
+    fieldId: string,
+    kind: "Photo / Video" | "Document",
+  ) {
+    const files = Array.from(event.target.files ?? []);
+    const stampedFiles = files.map((file) => ({
+      name: file.name,
+      type: kind,
+      capturedAt: new Date().toLocaleString(),
+    }));
+
+    setFieldAttachments((current) => ({
+      ...current,
+      [fieldId]: [...(current[fieldId] ?? []), ...stampedFiles],
+    }));
 
     event.target.value = "";
   }
@@ -508,7 +533,7 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
               </div>
               <p>
                 Upload whatever the client or seller shared at site. Missing documents can still be
-                marked here so office can follow up later.
+                marked here so office can follow up later instead of waiting for all papers up front.
               </p>
               <div className="upload-list">
                 {documentFiles.length === 0 ? (
@@ -528,13 +553,49 @@ export function InspectorForm({ caseId, inspector, sector, onSuccessfulSubmit }:
           ) : null}
 
           {activeConfig.fields.map((field) => (
-            <FieldControl
-              key={field.id}
-              error={errors[field.id]}
-              field={field}
-              value={values[field.id] ?? ""}
-              onChange={(nextValue) => updateValue(field.id, nextValue)}
-            />
+            <div key={field.id} className="field-with-upload">
+              <FieldControl
+                error={errors[field.id]}
+                field={field}
+                value={values[field.id] ?? ""}
+                onChange={(nextValue) => updateValue(field.id, nextValue)}
+              />
+              <div className="mini-upload-panel">
+                <div className="mini-upload-header">
+                  <span className="small-note">
+                    {activeConfig.id === "handoff" ? "Attach this document here" : "Attach proof for this item"}
+                  </span>
+                  <label className="secondary-button file-trigger mini-upload-button">
+                    <input
+                      accept={activeConfig.id === "handoff" ? ".pdf,image/*,.doc,.docx" : "image/*,video/*"}
+                      capture={activeConfig.id === "handoff" ? undefined : "environment"}
+                      multiple
+                      type="file"
+                      onChange={(event) =>
+                        handleFieldAttachmentSelection(
+                          event,
+                          field.id,
+                          activeConfig.id === "handoff" ? "Document" : "Photo / Video",
+                        )
+                      }
+                    />
+                    Attach
+                  </label>
+                </div>
+                {(fieldAttachments[field.id] ?? []).length > 0 ? (
+                  <div className="mini-upload-list">
+                    {(fieldAttachments[field.id] ?? []).map((file, index) => (
+                      <div key={`${field.id}-${file.name}-${index}`} className="mini-upload-item">
+                        <strong>{file.name}</strong>
+                        <span>
+                          {file.type} | {file.capturedAt}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
           ))}
         </div>
       </article>

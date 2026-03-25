@@ -42,6 +42,20 @@ export type AdvocateHandoffInput = {
   pendingDocumentsNote: string;
 };
 
+export type AdvocateCompletionInput = {
+  caseId: string;
+  legalSummary: string;
+  reportDocuments: string[];
+};
+
+export type FinalReportInput = {
+  caseId: string;
+  overallRisk: "Low" | "Moderate" | "High";
+  customerSummary: string;
+  suggestions: string;
+  reportDocuments: string[];
+};
+
 type AppStateValue = {
   cases: PropertyCase[];
   allCases: PropertyCase[];
@@ -57,7 +71,8 @@ type AppStateValue = {
   assignToAdvocate: (input: AdvocateHandoffInput) => Promise<void>;
   submitVerifierCase: (caseId: string) => Promise<void>;
   startAdvocateReview: (caseId: string) => Promise<void>;
-  completeAdvocateReview: (caseId: string) => Promise<void>;
+  completeAdvocateReview: (input: AdvocateCompletionInput) => Promise<void>;
+  saveFinalReport: (input: FinalReportInput) => Promise<void>;
   getCaseById: (caseId: string) => PropertyCase | undefined;
 };
 
@@ -596,8 +611,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
-      completeAdvocateReview: async (caseId: string) => {
-        const targetCase = allCases.find((propertyCase) => propertyCase.id === caseId);
+      completeAdvocateReview: async (input: AdvocateCompletionInput) => {
+        const targetCase = allCases.find((propertyCase) => propertyCase.id === input.caseId);
 
         if (!targetCase) {
           return;
@@ -610,20 +625,78 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           "Legal report uploaded and returned to office team.",
         );
 
-        await persistCaseUpdate(caseId, {
+        const nextDocuments = [...targetCase.advocateDocuments, ...input.reportDocuments];
+
+        await persistCaseUpdate(input.caseId, {
           stage: "Advocate Completed",
           advocate_completed: true,
+          legal_summary: input.legalSummary,
+          advocate_documents: nextDocuments,
           timeline: nextTimeline,
         });
 
         setAllCases((current) =>
           current.map((propertyCase) =>
-            propertyCase.id !== caseId
+            propertyCase.id !== input.caseId
               ? propertyCase
               : {
                   ...propertyCase,
                   stage: "Advocate Completed",
                   advocateCompleted: true,
+                  legalSummary: input.legalSummary,
+                  advocateDocuments: nextDocuments,
+                  timeline: nextTimeline,
+                },
+          ),
+        );
+      },
+      saveFinalReport: async (input: FinalReportInput) => {
+        const targetCase = allCases.find((propertyCase) => propertyCase.id === input.caseId);
+
+        if (!targetCase) {
+          return;
+        }
+
+        const nextTimeline = appendTimeline(
+          targetCase,
+          "Final report prepared",
+          "Office Team",
+          "Combined customer report prepared with structural and legal findings.",
+        );
+        const nextDocuments = [...targetCase.advocateDocuments, ...input.reportDocuments];
+        const nextNotes = [
+          {
+            title: "Customer summary",
+            body: input.customerSummary,
+          },
+          {
+            title: "Suggestions",
+            body: input.suggestions,
+          },
+        ];
+
+        await persistCaseUpdate(input.caseId, {
+          stage: "Ready to Send",
+          final_report_ready: true,
+          overall_risk: input.overallRisk,
+          final_report_summary: input.customerSummary,
+          final_report_notes: nextNotes,
+          advocate_documents: nextDocuments,
+          timeline: nextTimeline,
+        });
+
+        setAllCases((current) =>
+          current.map((propertyCase) =>
+            propertyCase.id !== input.caseId
+              ? propertyCase
+              : {
+                  ...propertyCase,
+                  stage: "Ready to Send",
+                  finalReportReady: true,
+                  overallRisk: input.overallRisk,
+                  finalReportSummary: input.customerSummary,
+                  finalReportNotes: nextNotes,
+                  advocateDocuments: nextDocuments,
                   timeline: nextTimeline,
                 },
           ),

@@ -7,6 +7,7 @@ import { AdminUserForm } from "@/components/admin-user-form";
 import { getOfficeMetrics, useAppState } from "@/components/app-state";
 import { AuthLoginForm } from "@/components/auth-login-form";
 import { OfficeIntakeForm } from "@/components/office-intake-form";
+import { ReportsCenter } from "@/components/reports-center";
 import {
   futureSectors,
   getRiskClass,
@@ -308,6 +309,7 @@ export function VettMvp() {
             onCreateCase={createCase}
             users={users}
           />
+          <ReportsCenter cases={allCases.filter((propertyCase) => currentUser.sectors.includes(propertyCase.sector))} />
           {currentUser.role === "admin" ? <AdminUserForm /> : null}
         </>
       ) : null}
