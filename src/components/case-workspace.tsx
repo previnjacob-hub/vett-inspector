@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { AdvocateHandoffForm } from "@/components/advocate-handoff-form";
 import { InspectorForm } from "@/components/inspector-form";
 import { useAppState } from "@/components/app-state";
@@ -76,6 +77,20 @@ export function CaseWorkspace({ propertyCase }: { propertyCase: PropertyCase }) 
 
   return (
     <div className="workspace-grid">
+      <section className="topbar-shell">
+        <div className="topbar-brand">
+          <Image alt="Vett" className="brand-mark" height={30} priority src="/vett-mark.svg" width={118} />
+          <div>
+            <strong>Case workspace</strong>
+            <span>{currentUser.name}</span>
+          </div>
+        </div>
+        <div className="topbar-chip-row">
+          <span className="topbar-chip">{sectorLabels[propertyCase.sector]}</span>
+          <span className="topbar-chip">{propertyCase.caseRef}</span>
+        </div>
+      </section>
+
       <section className="surface case-hero">
         <div>
           <Link className="back-link" href="/">

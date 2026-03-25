@@ -36,6 +36,9 @@ function LoginPanel({
         <div>
           <span className="eyebrow">Portal Access</span>
           <h2>Select a role-based login</h2>
+          <p className="section-copy">
+            Pick the exact portal role to see only the queue, SOPs, and actions relevant to that person.
+          </p>
         </div>
       </div>
 
@@ -127,6 +130,15 @@ export function VettMvp() {
   if (loading) {
     return (
       <div className="workspace-grid">
+        <section className="topbar-shell">
+          <div className="topbar-brand">
+            <Image alt="Vett" className="brand-mark" height={32} priority src="/vett-mark.svg" width={124} />
+            <div>
+              <strong>Verification Ops</strong>
+              <span>Shared workflow workspace</span>
+            </div>
+          </div>
+        </section>
         <section className="surface">
           <span className="eyebrow">Loading</span>
           <h2>Connecting to workspace data</h2>
@@ -139,6 +151,21 @@ export function VettMvp() {
   if (!currentUser) {
     return (
       <div className="workspace-grid">
+        <section className="topbar-shell">
+          <div className="topbar-brand">
+            <Image alt="Vett" className="brand-mark" height={32} priority src="/vett-mark.svg" width={124} />
+            <div>
+              <strong>Verification Ops</strong>
+              <span>Field, legal, and office workflow</span>
+            </div>
+          </div>
+          <div className="topbar-chip-row">
+            <span className="topbar-chip">Mobile-first</span>
+            <span className="topbar-chip">Role-based</span>
+            <span className="topbar-chip">Shared database</span>
+          </div>
+        </section>
+
         <section className="surface hero-panel">
           <div className="hero-copy">
             <div className="brand-lockup">
@@ -156,6 +183,18 @@ export function VettMvp() {
               <span className="document-pill">Used Car later</span>
             </div>
           </div>
+          <div className="hero-summary-panel">
+            <div className="hero-summary-card">
+              <span className="eyebrow">Flow</span>
+              <strong>Office {"->"} Verifier {"->"} Advocate {"->"} Final report</strong>
+              <p>No one sees the full process unless their role needs it.</p>
+            </div>
+            <div className="hero-summary-card">
+              <span className="eyebrow">Designed for field</span>
+              <strong>Phone capture, clean queues, structured handoff</strong>
+              <p>Built so a verifier can open a case and know exactly what to do next.</p>
+            </div>
+          </div>
         </section>
 
         {authEnabled ? <AuthLoginForm onLogin={loginWithPassword} /> : <LoginPanel onLogin={loginAs} users={users} />}
@@ -165,6 +204,7 @@ export function VettMvp() {
             <div>
               <span className="eyebrow">Sectors</span>
               <h2>Current and future verification lines</h2>
+              <p className="section-copy">Property and land are active now. Future lines stay visible so the product structure is ready to expand.</p>
             </div>
           </div>
 
@@ -183,18 +223,36 @@ export function VettMvp() {
 
   return (
     <div className="workspace-grid">
-      <section className="surface hero-panel">
-          <div className="hero-copy">
-            <div className="brand-lockup">
-              <Image alt="Vett" className="brand-mark" height={36} priority src="/vett-mark.svg" width={134} />
-            </div>
-            <span className="eyebrow">{currentUser.role} Portal</span>
-            <h1>{portalTitles[currentUser.role]}</h1>
-            <p>
-              Logged in as {currentUser.name}. Access is filtered by role and sector, and the queue
-              only shows work meant for this user.
-            </p>
+      <section className="topbar-shell">
+        <div className="topbar-brand">
+          <Image alt="Vett" className="brand-mark" height={32} priority src="/vett-mark.svg" width={124} />
+          <div>
+            <strong>Verification Ops</strong>
+            <span>{currentUser.name}</span>
           </div>
+        </div>
+        <div className="topbar-chip-row">
+          <span className="topbar-chip">{currentUser.role}</span>
+          <span className="topbar-chip">{currentUser.sectors.map((sector) => sectorLabels[sector]).join(" / ")}</span>
+        </div>
+      </section>
+
+      <section className="surface hero-panel">
+        <div className="hero-copy">
+          <div className="brand-lockup">
+            <Image alt="Vett" className="brand-mark" height={36} priority src="/vett-mark.svg" width={134} />
+          </div>
+          <span className="eyebrow">{currentUser.role} Portal</span>
+          <h1>{portalTitles[currentUser.role]}</h1>
+          <p>
+            Logged in as {currentUser.name}. Access is filtered by role and sector, and the queue
+            only shows work meant for this user.
+          </p>
+          <div className="hero-badges">
+            <span className="document-pill">{cases.length} visible cases</span>
+            <span className="document-pill">{accessibleSops.length} SOPs available</span>
+          </div>
+        </div>
         <div className="hero-actions">
           <button className="secondary-button" onClick={logout} type="button">
             Switch login
@@ -214,6 +272,7 @@ export function VettMvp() {
               <div>
                 <span className="eyebrow">Office Dashboard</span>
                 <h2>Track the full pipeline</h2>
+                <p className="section-copy">See what came in today, what is ready for legal handoff, and what is waiting at the final report desk.</p>
               </div>
             </div>
 
@@ -270,8 +329,9 @@ export function VettMvp() {
                   ? "Only legal review cases assigned to you"
                   : "Office view of all pipeline stages"}
             </h2>
+            <p className="section-copy">Select a case from the left to see a focused summary before opening the full workspace.</p>
           </div>
-          <span className="small-note">{cases.length} visible cases</span>
+          <span className="queue-count">{cases.length} visible cases</span>
         </div>
 
         <div className="queue-layout">
